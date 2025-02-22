@@ -1,16 +1,16 @@
-import type { FC } from '../../../../lib/teact/teact';
+import type { FC, RefObject } from '../../../../lib/teact/teact';
 import React, {
-  memo, useCallback, useEffect, useMemo, useState,
+  memo, useCallback, useEffect, useMemo, useRef, useSignal, useState,
 } from '../../../../lib/teact/teact';
 import { getActions, getGlobal, withGlobal } from '../../../../global';
 
-import type { ApiChatlistExportedInvite } from '../../../../api/types';
+import { type ApiChatlistExportedInvite, type ApiSticker } from '../../../../api/types';
 import type {
   FolderEditDispatch,
   FoldersState,
 } from '../../../../hooks/reducers/useFoldersReducer';
 
-import { STICKER_SIZE_FOLDER_SETTINGS } from '../../../../config';
+import { EDITABLE_INPUT_CSS_SELECTOR, EDITABLE_INPUT_ID, STICKER_SIZE_FOLDER_SETTINGS } from '../../../../config';
 import { isUserId } from '../../../../global/helpers';
 import { selectCanShareFolder } from '../../../../global/selectors';
 import { selectCurrentLimit } from '../../../../global/selectors/limits';
@@ -31,6 +31,14 @@ import FloatingActionButton from '../../../ui/FloatingActionButton';
 import InputText from '../../../ui/InputText';
 import ListItem from '../../../ui/ListItem';
 import Spinner from '../../../ui/Spinner';
+import useFlag from '../../../../hooks/useFlag';
+import SymbolMenuButton from '../../../middle/composer/SymbolMenuButton';
+import { FolderIcons, getFolderIcon, removeCustomIconsFromFolder } from '../../../../contest/chat-folders/FolderIcons';
+import useDidMountEffect from '../../../../hooks/useDidMountEffect';
+import NewMessageInput from '../../../../contest/text-editor/NewMessageInput';
+import { MessageInputController, useMessageInputEvent } from '../../../../contest/text-editor';
+import { areFormattedTextsEqual } from '../../../../contest/text-editor/utils';
+import useLastCallback from '../../../../hooks/useLastCallback';
 
 type OwnProps = {
   state: FoldersState;
@@ -151,10 +159,6 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
     onBack,
   });
 
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const { currentTarget } = event;
-    dispatch({ type: 'setTitle', payload: currentTarget.value.trim() });
-  }, [dispatch]);
 
   const handleSubmit = useCallback(() => {
     dispatch({ type: 'setIsLoading', payload: true });
@@ -279,6 +283,43 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
     );
   }
 
+  const editableInputId = 'folder-editable-message-text'
+  const [isSymbolMenuOpen, openSymbolMenu, closeSymbolMenu] = useFlag(false);
+  // const [getHtml, setHtml] = useSignal(getTextWithEntitiesAsHtml(state.folder.title));
+  const styleInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<MessageInputController>(null);
+
+  const handleEmojiSelect = useCallback((emoji: string | ApiSticker) => {
+    if (typeof emoji === 'string' && FolderIcons.isSupportedEmoticon(emoji)) {
+      closeSymbolMenu();
+      dispatch({ type: 'setTitle', payload: removeCustomIconsFromFolder(state.folder).title });
+      dispatch({ type: 'setEmoticon', payload: emoji });
+    }
+    else {
+      messageInputRef.current?.insertEmoji(emoji);
+    }
+  }, [dispatch]);
+
+  const handleTextUpdate = useLastCallback(() => {
+    if (!messageInputRef.current) return;
+    const formattedText = messageInputRef.current.getFormattedText();
+    if (areFormattedTextsEqual(state.folder.title, formattedText)) return;
+    dispatch({
+      type: 'setTitle',
+      payload: formattedText
+    });
+  });
+
+  useEffect(() => {
+    if (!messageInputRef.current) return;
+    if (areFormattedTextsEqual(state.folder.title, messageInputRef.current.getFormattedText())) return;
+    messageInputRef.current.setup(state.folder.title);
+  }, [state]);
+
+  useEffect(() => {
+    styleInputRef.current?.classList.add('focus');
+  }, [styleInputRef]);
+
   return (
     <div className="settings-fab-wrapper">
       <div className="settings-content no-border custom-scroll">
@@ -296,13 +337,59 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
             </p>
           )}
 
-          <InputText
-            className="mb-0"
-            label={lang('FilterNameHint')}
-            value={state.folder.title.text}
-            onChange={handleChange}
-            error={state.error && state.error === ERROR_NO_TITLE ? ERROR_NO_TITLE : undefined}
-          />
+          <div className='edit-input-wrapper'>
+            <InputText
+              ref={styleInputRef}
+              className='style-input'
+              label={lang('FilterNameHint')}
+            />
+
+            <NewMessageInput
+              id='folder-input-text'
+              messageInputRef={messageInputRef}
+              chatId='me'
+              threadId=''
+              customEmojiPrefix='folder-icon-picker'
+              isReady
+              isActive
+              placeholder={lang('FilterNameHint')}
+              editableInputId={editableInputId}
+              canSendPlainText
+              onUpdate={handleTextUpdate}
+              onSend={() => { }}
+              canAutoFocus
+              initialText={state.folder.title}
+              disableMarkdown
+              disableTextFormatter
+              onFocus={() => {
+                styleInputRef.current?.classList.add('focus');
+              }}
+              onBlur={() => {
+                if (!messageInputRef.current?.isTouched()) {
+                  styleInputRef.current?.classList.remove('focus');
+                }
+              }}
+            />
+
+
+            <div className='button-wrapper'>
+              <SymbolMenuButton
+                chatId='me'
+                idPrefix='folder-icon-picker'
+                isSymbolMenuOpen={isSymbolMenuOpen}
+                closeSymbolMenu={closeSymbolMenu}
+                onCustomEmojiSelect={handleEmojiSelect}
+                onEmojiSelect={handleEmojiSelect}
+                onRemoveSymbol={closeSymbolMenu}
+                openSymbolMenu={openSymbolMenu}
+                isAttachmentModal={true}
+                buttonIcon={<div className='btn-icon'>{getFolderIcon(state, 30)}</div>}
+                canSendPlainText
+                isReady
+                isFolderIconPicker
+              />
+            </div>
+          </div>
         </div>
 
         {!isOnlyInvites && (

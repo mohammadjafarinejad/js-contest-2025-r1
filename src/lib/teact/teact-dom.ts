@@ -377,7 +377,11 @@ function remount(
     if (node) {
       parentEl.replaceChild(node, $current.target!);
     } else {
-      parentEl.removeChild($current.target!);
+      // ? Error occurs when removing nodes in ContentEditable (e.g., RichTextEditor).
+      // ? Temporarily handle this issue.
+      if ($current.target && parentEl.contains($current.target)) {
+        parentEl.removeChild($current.target!);
+      }
     }
 
     unmountRealTree($current);

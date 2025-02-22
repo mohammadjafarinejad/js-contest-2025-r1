@@ -63,8 +63,9 @@ export type OwnProps = {
   className?: string;
   isAttachmentModal?: boolean;
   canSendPlainText?: boolean;
+  isFolderIconPicker?: boolean;
 }
-& MenuPositionOptions;
+  & MenuPositionOptions;
 
 type StateProps = {
   isLeftColumnShown: boolean;
@@ -96,6 +97,7 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
   onSearchOpen,
   addRecentEmoji,
   addRecentCustomEmoji,
+  isFolderIconPicker,
   ...menuPositionOptions
 }) => {
   const [activeTab, setActiveTab] = useState<number>(0);
@@ -195,6 +197,22 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
   });
 
   function renderContent(isActive: boolean, isFrom: boolean) {
+    if (isFolderIconPicker) {
+      return (
+        <CustomEmojiPicker
+          className="picker-tab"
+          isHidden={!isOpen || !isActive}
+          idPrefix={idPrefix}
+          loadAndPlay={isOpen && (isActive || isFrom)}
+          chatId={chatId}
+          isTranslucent={!isMobile && isBackgroundTranslucent}
+          onCustomEmojiSelect={handleCustomEmojiSelect}
+          onEmojiSelect={handleEmojiSelect}
+          isFolderIconPicker
+        />
+      );
+    }
+
     switch (activeTab) {
       case SymbolMenuTabs.Emoji:
         return (
@@ -274,7 +292,7 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
           <Icon name="close" />
         </Button>
       )}
-      <SymbolMenuFooter
+      {!isFolderIconPicker && <SymbolMenuFooter
         activeTab={activeTab}
         onSwitchTab={setActiveTab}
         onRemoveSymbol={onRemoveSymbol}
@@ -282,7 +300,7 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
         onSearchOpen={handleSearch}
         isAttachmentModal={isAttachmentModal}
         canSendPlainText={canSendPlainText}
-      />
+      />}
     </>
   );
 
@@ -321,7 +339,7 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       withPortal={isAttachmentModal}
-      className={buildClassName('SymbolMenu', className)}
+      className={buildClassName('SymbolMenu', isFolderIconPicker && 'folder-icon-picker', className)}
       onCloseAnimationEnd={onClose}
       onMouseEnter={!IS_TOUCH_ENV ? handleMouseEnter : undefined}
       onMouseLeave={!IS_TOUCH_ENV ? handleMouseLeave : undefined}

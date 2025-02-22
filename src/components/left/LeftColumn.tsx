@@ -30,6 +30,7 @@ import NewChat from './newChat/NewChat.async';
 import Settings from './settings/Settings.async';
 
 import './LeftColumn.scss';
+import buildClassName from '../../util/buildClassName';
 
 interface OwnProps {
   ref: RefObject<HTMLDivElement>;
@@ -103,6 +104,7 @@ function LeftColumn({
   const [settingsScreen, setSettingsScreen] = useState(SettingsScreens.Main);
   const [contactsFilter, setContactsFilter] = useState<string>('');
   const [foldersState, foldersDispatch] = useFoldersReducer();
+
 
   // Used to reset child components in background.
   const [lastResetTime, setLastResetTime] = useState<number>(0);
@@ -545,7 +547,18 @@ function LeftColumn({
     }
   }
 
-  return (
+  const [showFolderColumn, setShowFolderColumn] = useState(true);
+  useEffect(() => {
+    if (contentType === ContentType.Settings && settingsScreen !== SettingsScreens.FoldersEditFolderFromChatList) {
+      setShowFolderColumn(false);
+    }
+    else {
+      setShowFolderColumn(true);
+    }
+  }, [content, contentType, settingsScreen]);
+
+  return <div className="LeftColumnWrapper">
+    <div id='folders-column' className={buildClassName(!showFolderColumn && 'hide')} />
     <Transition
       ref={ref}
       name={shouldSkipHistoryAnimations ? 'none' : LAYERS_ANIMATION_NAME}
@@ -560,7 +573,7 @@ function LeftColumn({
     >
       {renderContent}
     </Transition>
-  );
+  </div>;
 }
 
 export default memo(withGlobal<OwnProps>(

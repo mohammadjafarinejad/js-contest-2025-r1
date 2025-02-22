@@ -1,17 +1,18 @@
-import type { FC } from '../../../lib/teact/teact';
+import type { FC, TeactNode } from '../../../lib/teact/teact';
 import React, {
   memo, useEffect, useMemo, useRef,
+  useState,
 } from '../../../lib/teact/teact';
 import { getActions, getGlobal, withGlobal } from '../../../global';
 
-import type { ApiChatFolder, ApiChatlistExportedInvite, ApiSession } from '../../../api/types';
+import { ApiMessageEntityTypes, type ApiChatFolder, type ApiChatlistExportedInvite, type ApiSession } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
-import type { FolderEditDispatch } from '../../../hooks/reducers/useFoldersReducer';
+import type { FolderEditDispatch, FoldersState } from '../../../hooks/reducers/useFoldersReducer';
 import type { LeftColumnContent, SettingsScreens } from '../../../types';
 import type { MenuItemContextAction } from '../../ui/ListItem';
 import type { TabWithProperties } from '../../ui/TabList';
 
-import { ALL_FOLDER_ID } from '../../../config';
+import { ALL_FOLDER_ID, MOBILE_SCREEN_MAX_WIDTH } from '../../../config';
 import { selectCanShareFolder, selectTabState } from '../../../global/selectors';
 import { selectCurrentLimit } from '../../../global/selectors/limits';
 import buildClassName from '../../../util/buildClassName';
@@ -32,6 +33,9 @@ import StoryRibbon from '../../story/StoryRibbon';
 import TabList from '../../ui/TabList';
 import Transition from '../../ui/Transition';
 import ChatList from './ChatList';
+import { findCustomEmojiAsIcon, getFolderIcon } from '../../../contest/chat-folders/FolderIcons';
+import { Contest } from '../../../contest/contest';
+import { useFolderPosition, useRepositionOnFolderChange } from '../../../contest/chat-folders/useFolderPosition';
 
 type OwnProps = {
   onSettingsScreenSelect: (screen: SettingsScreens) => void;
@@ -128,6 +132,8 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
           return allChatsFolder;
         }
 
+        // ! FOR TEST
+        if (Contest.isTestMode()) return Contest.Test().tryAddCustomEmojiToFolder(chatFoldersById[id]);
         return chatFoldersById[id] || {};
       }).filter(Boolean)
       : undefined;
@@ -200,9 +206,10 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
         id,
         title: renderTextWithEntities({
           text: title.text,
-          entities: title.entities,
+          entities: findCustomEmojiAsIcon(folder) !== undefined ? [] : title.entities,
           noCustomEmojiPlayback: folder.noTitleAnimations,
         }),
+        icon: getFolderIcon(folder),
         badgeCount: folderCountersById[id]?.chatsCount,
         isBadgeActive: Boolean(folderCountersById[id]?.notificationsCount),
         isBlocked,
@@ -216,6 +223,11 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
 
   const handleSwitchTab = useLastCallback((index: number) => {
     setActiveChatFolder({ activeChatFolder: index }, { forceOnHeavyAnimation: true });
+
+    // ? If 'SettingsFoldersEdit' is open, update it based on the currently active chat folder
+    if (document.querySelector('.settings-main-header') && displayedFolders) {
+      openEditChatFolder({ folderId: displayedFolders[index].id });
+    }
   });
 
   // Prevent `activeTab` pointing at non-existing folder after update
@@ -322,7 +334,13 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
     );
   }
 
-  const shouldRenderFolders = folderTabs && folderTabs.length > 1;
+  const shouldRenderFolders = !!folderTabs && folderTabs.length > 1;
+  const { isLeftColumn: isVertical } = useFolderPosition();
+
+  useRepositionOnFolderChange({
+    elementId: "tab-list",
+    originId: "tab-list-wrapper"
+  });
 
   return (
     <div
@@ -334,16 +352,17 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
       )}
     >
       {shouldRenderStoryRibbon && <StoryRibbon isClosing={isStoryRibbonClosing} />}
-      {shouldRenderFolders ? (
+      <div id='tab-list-wrapper'>
         <TabList
+          id='tab-list'
+          isVertical={isVertical}
           contextRootElementSelector="#LeftColumn"
-          tabs={folderTabs}
+          tabs={folderTabs ?? []}
           activeTab={activeChatFolder}
           onSwitchTab={handleSwitchTab}
         />
-      ) : shouldRenderPlaceholder ? (
-        <div ref={placeholderRef} className="tabs-placeholder" />
-      ) : undefined}
+      </div>
+      {!shouldRenderFolders && shouldRenderPlaceholder && <div ref={placeholderRef} className="tabs-placeholder" />}
       <Transition
         ref={transitionRef}
         name={shouldSkipHistoryAnimations ? 'none' : lang.isRtl ? 'slideOptimizedRtl' : 'slideOptimized'}

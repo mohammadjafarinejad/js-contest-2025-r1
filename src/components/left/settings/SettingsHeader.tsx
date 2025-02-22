@@ -221,8 +221,11 @@ const SettingsHeader: FC<OwnProps> = ({
         return <h3>{oldLang('FilterNew')}</h3>;
       case SettingsScreens.FoldersShare:
         return <h3>{oldLang('FolderLinkScreen.Title')}</h3>;
-      case SettingsScreens.FoldersEditFolder:
       case SettingsScreens.FoldersEditFolderFromChatList:
+        return <div className="settings-main-header">
+          <h3>{oldLang('FilterEdit')}</h3>
+        </div>;
+      case SettingsScreens.FoldersEditFolder:
       case SettingsScreens.FoldersEditFolderInvites:
         return (
           <div className="settings-main-header">
@@ -293,7 +296,7 @@ const SettingsHeader: FC<OwnProps> = ({
         onClick={onReset}
         ariaLabel={oldLang('AccDescrGoBack')}
       >
-        <Icon name="arrow-left" />
+        <Icon name={currentScreen === SettingsScreens.FoldersEditFolderFromChatList ? "close" : "arrow-left"} />
       </Button>
       {renderHeaderContent()}
       <ConfirmDialog

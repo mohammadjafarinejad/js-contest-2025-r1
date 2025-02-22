@@ -23,6 +23,7 @@ const MOBILE_CONTAINER_PADDING = 0.5 * REM;
 
 type OwnProps = {
   category: EmojiCategory;
+  shouldHideHeader?: boolean;
   index: number;
   allEmojis: AllEmojis;
   observeIntersection: ObserveFn;
@@ -31,7 +32,7 @@ type OwnProps = {
 };
 
 const EmojiCategory: FC<OwnProps> = ({
-  category, index, allEmojis, observeIntersection, shouldRender, onEmojiSelect,
+  category, shouldHideHeader, index, allEmojis, observeIntersection, shouldRender, onEmojiSelect,
 }) => {
   // eslint-disable-next-line no-null/no-null
   const ref = useRef<HTMLDivElement>(null);
@@ -58,11 +59,11 @@ const EmojiCategory: FC<OwnProps> = ({
       id={`emoji-category-${index}`}
       className="symbol-set"
     >
-      <div className="symbol-set-header">
+      {shouldHideHeader && <div className="symbol-set-header">
         <p className="symbol-set-name" dir="auto">
           {lang(category.id === RECENT_SYMBOL_SET_ID ? 'RecentStickers' : `Emoji${index}`)}
         </p>
-      </div>
+      </div>}
       <div
         className={buildClassName('symbol-set-container', transitionClassNames)}
         style={`height: ${height}px;`}

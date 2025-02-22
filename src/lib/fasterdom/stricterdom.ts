@@ -165,6 +165,10 @@ function setupMutationObserver() {
           return;
         }
 
+        if (attributeName === 'class' && target instanceof HTMLElement && target.dataset.markdownMarker) {
+          return;
+        }
+
         // eslint-disable-next-line no-console
         onError(new Error(`Unexpected mutation detected: \`${type === 'attributes' ? attributeName : type}\``));
       });

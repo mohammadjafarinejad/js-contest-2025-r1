@@ -14,6 +14,7 @@ import './Spoiler.scss';
 type OwnProps = {
   children?: TeactNode;
   containerId?: string;
+  isInEditMode?: boolean;
 };
 
 const revealByContainerId: Map<string, VoidFunction[]> = new Map();
@@ -23,6 +24,7 @@ const buildClassName = createClassNameBuilder('Spoiler');
 const Spoiler = ({
   children,
   containerId,
+  isInEditMode
 }: OwnProps) => {
   // eslint-disable-next-line no-null/no-null
   const contentRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,7 @@ const Spoiler = ({
         '&',
         !isRevealed && 'concealed',
         !isRevealed && Boolean(containerId) && 'animated',
+        isInEditMode && 'isInEditMode',
       )}
       onClick={containerId && !isRevealed ? handleClick : undefined}
       data-entity-type={ApiMessageEntityTypes.Spoiler}

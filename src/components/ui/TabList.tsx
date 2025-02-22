@@ -1,5 +1,5 @@
-import type { FC, TeactNode } from '../../lib/teact/teact';
-import React, { memo, useEffect, useRef } from '../../lib/teact/teact';
+import type { FC, RefObject, TeactNode } from '../../lib/teact/teact';
+import React, { memo, useEffect, useRef, useState } from '../../lib/teact/teact';
 
 import type { MenuItemContextAction } from './ListItem';
 
@@ -14,10 +14,12 @@ import usePreviousDeprecated from '../../hooks/usePreviousDeprecated';
 import Tab from './Tab';
 
 import './TabList.scss';
+import useVerticalScroll from '../../hooks/useVerticalScroll';
 
 export type TabWithProperties = {
   id?: number;
   title: TeactNode;
+  icon: TeactNode;
   badgeCount?: number;
   isBlocked?: boolean;
   isBadgeActive?: boolean;
@@ -25,7 +27,9 @@ export type TabWithProperties = {
 };
 
 type OwnProps = {
+  id?: string;
   tabs: readonly TabWithProperties[];
+  isVertical?: boolean;
   activeTab: number;
   className?: string;
   tabClassName?: string;
@@ -38,14 +42,15 @@ const TAB_SCROLL_THRESHOLD_PX = 16;
 const SCROLL_DURATION = IS_IOS ? 450 : IS_ANDROID ? 400 : 300;
 
 const TabList: FC<OwnProps> = ({
-  tabs, activeTab, onSwitchTab,
+  id, tabs, isVertical, activeTab, onSwitchTab,
   contextRootElementSelector, className, tabClassName,
 }) => {
   // eslint-disable-next-line no-null/no-null
   const containerRef = useRef<HTMLDivElement>(null);
   const previousActiveTab = usePreviousDeprecated(activeTab);
 
-  useHorizontalScroll(containerRef, undefined, true);
+  useHorizontalScroll(containerRef, isVertical, true);
+  useVerticalScroll(containerRef, !isVertical, true);
 
   // Scroll container to place active tab in the center
   useEffect(() => {
@@ -75,14 +80,17 @@ const TabList: FC<OwnProps> = ({
 
   return (
     <div
-      className={buildClassName('TabList', 'no-scrollbar', className)}
+      id={id}
+      className={buildClassName('TabList', isVertical && 'vertical', 'no-scrollbar', className)}
       ref={containerRef}
       dir={lang.isRtl ? 'rtl' : undefined}
     >
       {tabs.map((tab, i) => (
         <Tab
           key={tab.id}
-          title={tab.title}
+          title={tab.id === 0 && isVertical ? 'All Chats' : tab.title}
+          icon={tab.icon}
+          isVertical={isVertical}
           isActive={i === activeTab}
           isBlocked={tab.isBlocked}
           badgeCount={tab.badgeCount}

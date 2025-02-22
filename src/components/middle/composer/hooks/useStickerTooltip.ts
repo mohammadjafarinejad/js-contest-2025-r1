@@ -13,21 +13,26 @@ import { prepareForRegExp } from '../helpers/prepareForRegExp';
 import useDerivedSignal from '../../../../hooks/useDerivedSignal';
 import useDerivedState from '../../../../hooks/useDerivedState';
 import useFlag from '../../../../hooks/useFlag';
+import { MessageInputRefType, useMessageInputEvent } from '../../../../contest/text-editor';
 
 const MAX_LENGTH = 8;
 const STARTS_ENDS_ON_EMOJI_IMG_REGEX = new RegExp(`^${EMOJI_IMG_REGEX.source}$`, 'g');
 
 export default function useStickerTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
+  // getHtml: Signal<string>,
+  textEditorRef: MessageInputRefType,
   stickers?: ApiSticker[],
 ) {
   const { loadStickersForEmoji, clearStickersForEmoji } = getActions();
 
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
+  const {isMessageInputChanged} = useMessageInputEvent(textEditorRef);
 
   const getSingleEmoji = useDerivedSignal(() => {
-    const html = getHtml();
+    if (!textEditorRef.current) return;
+    // const html = getHtml();
+    const html = textEditorRef.current.getHtml();
     if (!isEnabled || !html || (IS_EMOJI_SUPPORTED && html.length > MAX_LENGTH)) return undefined;
 
     const hasEmoji = html.match(IS_EMOJI_SUPPORTED ? twemojiRegex : EMOJI_IMG_REGEX);
@@ -42,7 +47,7 @@ export default function useStickerTooltip(
     return isSingleEmoji
       ? (IS_EMOJI_SUPPORTED ? cleanHtml : cleanHtml.match(/alt="(.+)"/)?.[1]!)
       : undefined;
-  }, [getHtml, isEnabled]);
+  }, [isMessageInputChanged, isEnabled]);
 
   const isActive = useDerivedState(() => Boolean(getSingleEmoji()), [getSingleEmoji]);
   const hasStickers = Boolean(stickers?.length);
@@ -60,7 +65,7 @@ export default function useStickerTooltip(
     }
   }, [isEnabled, isActive, getSingleEmoji, hasStickers, loadStickersForEmoji, clearStickersForEmoji]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, isMessageInputChanged]);
 
   return {
     isStickerTooltipOpen: Boolean(isActive && hasStickers && !isManuallyClosed),

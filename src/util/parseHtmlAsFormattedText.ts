@@ -1,7 +1,12 @@
 import type { ApiFormattedText, ApiMessageEntity } from '../api/types';
 import { ApiMessageEntityTypes } from '../api/types';
+import { getBlockQuoteInnerText } from '../components/common/Blockquote';
+import { extractCodeBlockData } from '../components/common/code/CodeBlock';
+import { getCustomEmojiInnerText } from '../components/common/CustomEmoji';
 
 import { RE_LINK_TEMPLATE } from '../config';
+import { isMarkdownMarker } from '../contest/text-editor';
+import { Utils } from '../contest/text-editor/utils';
 import { IS_EMOJI_SUPPORTED } from './windowEnvironment';
 
 export const ENTITY_CLASS_BY_NODE_NAME: Record<string, ApiMessageEntityTypes> = {
@@ -22,20 +27,28 @@ export const ENTITY_CLASS_BY_NODE_NAME: Record<string, ApiMessageEntityTypes> = 
 const MAX_TAG_DEEPNESS = 3;
 
 export default function parseHtmlAsFormattedText(
-  html: string, withMarkdownLinks = false, skipMarkdown = false,
+  html: string, withMarkdownLinks = false, skipMarkdown = false
 ): ApiFormattedText {
+  if (!skipMarkdown) {
+    skipMarkdown = true;
+    console.warn("Markdown parsing currently disabled in this function!");
+    console.error("Markdown parsing currently disabled in this function!");
+  }
   const fragment = document.createElement('div');
-  fragment.innerHTML = skipMarkdown ? html
-    : withMarkdownLinks ? parseMarkdown(parseMarkdownLinks(html)) : parseMarkdown(html);
+  fragment.innerHTML = html;
+  // skipMarkdown ? html
+  //   : withMarkdownLinks ? parseMarkdown(parseMarkdownLinks(html)) : parseMarkdown(html);
   fixImageContent(fragment);
-  const text = fragment.innerText.trim().replace(/\u200b+/g, '');
-  const trimShift = fragment.innerText.indexOf(text[0]);
+  const innerText = [...fragment.childNodes].reduce((text, node) => text + getNodeInnerText(node), '');
+  const text = innerText.trim().replace(/\u200b+/g, '');
+  const trimShift = innerText.indexOf(text[0]);
   let textIndex = -trimShift;
   let recursionDeepness = 0;
   const entities: ApiMessageEntity[] = [];
 
   function addEntity(node: ChildNode) {
     if (node.nodeType === Node.COMMENT_NODE) return;
+    if (isMarkdownMarker(node)) return;
     const { index, entity } = getEntityDataFromNode(node, text, textIndex);
 
     if (entity) {
@@ -48,6 +61,13 @@ export default function parseHtmlAsFormattedText(
       }
       textIndex += node.textContent.length;
     }
+
+    // ? Skip Childs
+    if (entity?.type === ApiMessageEntityTypes.Pre
+      // || entity?.type === ApiMessageEntityTypes.Blockquote
+      || entity?.type === ApiMessageEntityTypes.CustomEmoji) return;
+    // ! FOR NOW
+    // if (entity?.type === ApiMessageEntityTypes.Spoiler) return;
 
     if (node.hasChildNodes() && recursionDeepness <= MAX_TAG_DEEPNESS) {
       recursionDeepness += 1;
@@ -66,6 +86,13 @@ export default function parseHtmlAsFormattedText(
   };
 }
 
+function getNodeInnerText(node: ChildNode) {
+  return extractCodeBlockData(node)?.codeContent ||
+    getBlockQuoteInnerText(node)?.text ||
+    getCustomEmojiInnerText(node)?.text ||
+    Utils.getTextContentWithBreaks(node, { skipMarkdownMarker: true });
+}
+
 export function fixImageContent(fragment: HTMLDivElement) {
   fragment.querySelectorAll('img').forEach((node) => {
     if (node.dataset.documentId) { // Custom Emoji
@@ -76,70 +103,70 @@ export function fixImageContent(fragment: HTMLDivElement) {
   });
 }
 
-function parseMarkdown(html: string) {
-  let parsedHtml = html.slice(0);
+// function parseMarkdown(html: string) {
+//   let parsedHtml = html.slice(0);
 
-  // Strip redundant nbsp's
-  parsedHtml = parsedHtml.replace(/&nbsp;/g, ' ');
+//   // Strip redundant nbsp's
+//   parsedHtml = parsedHtml.replace(/&nbsp;/g, ' ');
 
-  // Replace <div><br></div> with newline (new line in Safari)
-  parsedHtml = parsedHtml.replace(/<div><br([^>]*)?><\/div>/g, '\n');
-  // Replace <br> with newline
-  parsedHtml = parsedHtml.replace(/<br([^>]*)?>/g, '\n');
+//   // Replace <div><br></div> with newline (new line in Safari)
+//   parsedHtml = parsedHtml.replace(/<div><br([^>]*)?><\/div>/g, '\n');
+//   // Replace <br> with newline
+//   parsedHtml = parsedHtml.replace(/<br([^>]*)?>/g, '\n');
 
-  // Strip redundant <div> tags
-  parsedHtml = parsedHtml.replace(/<\/div>(\s*)<div>/g, '\n');
-  parsedHtml = parsedHtml.replace(/<div>/g, '\n');
-  parsedHtml = parsedHtml.replace(/<\/div>/g, '');
+//   // Strip redundant <div> tags
+//   parsedHtml = parsedHtml.replace(/<\/div>(\s*)<div>/g, '\n');
+//   parsedHtml = parsedHtml.replace(/<div>/g, '\n');
+//   parsedHtml = parsedHtml.replace(/<\/div>/g, '');
 
-  // Pre
-  parsedHtml = parsedHtml.replace(/^`{3}(.*?)[\n\r](.*?[\n\r]?)`{3}/gms, '<pre data-language="$1">$2</pre>');
-  parsedHtml = parsedHtml.replace(/^`{3}[\n\r]?(.*?)[\n\r]?`{3}/gms, '<pre>$1</pre>');
-  parsedHtml = parsedHtml.replace(/[`]{3}([^`]+)[`]{3}/g, '<pre>$1</pre>');
+//   // Pre
+//   parsedHtml = parsedHtml.replace(/^`{3}(.*?)[\n\r](.*?[\n\r]?)`{3}/gms, '<pre data-language="$1">$2</pre>');
+//   parsedHtml = parsedHtml.replace(/^`{3}[\n\r]?(.*?)[\n\r]?`{3}/gms, '<pre>$1</pre>');
+//   parsedHtml = parsedHtml.replace(/[`]{3}([^`]+)[`]{3}/g, '<pre>$1</pre>');
 
-  // Code
-  parsedHtml = parsedHtml.replace(
-    /(?!<(code|pre)[^<]*|<\/)[`]{1}([^`\n]+)[`]{1}(?![^<]*<\/(code|pre)>)/g,
-    '<code>$2</code>',
-  );
+//   // Code
+//   parsedHtml = parsedHtml.replace(
+//     /(?!<(code|pre)[^<]*|<\/)[`]{1}([^`\n]+)[`]{1}(?![^<]*<\/(code|pre)>)/g,
+//     '<code>$2</code>',
+//   );
 
-  // Custom Emoji markdown tag
-  if (!IS_EMOJI_SUPPORTED) {
-    // Prepare alt text for custom emoji
-    parsedHtml = parsedHtml.replace(/\[<img[^>]+alt="([^"]+)"[^>]*>]/gm, '[$1]');
-  }
-  parsedHtml = parsedHtml.replace(
-    /(?!<(?:code|pre)[^<]*|<\/)\[([^\]\n]+)\]\(customEmoji:(\d+)\)(?![^<]*<\/(?:code|pre)>)/g,
-    '<img alt="$1" data-document-id="$2">',
-  );
+//   // Custom Emoji markdown tag
+//   if (!IS_EMOJI_SUPPORTED) {
+//     // Prepare alt text for custom emoji
+//     parsedHtml = parsedHtml.replace(/\[<img[^>]+alt="([^"]+)"[^>]*>]/gm, '[$1]');
+//   }
+//   parsedHtml = parsedHtml.replace(
+//     /(?!<(?:code|pre)[^<]*|<\/)\[([^\]\n]+)\]\(customEmoji:(\d+)\)(?![^<]*<\/(?:code|pre)>)/g,
+//     '<img alt="$1" data-document-id="$2">',
+//   );
 
-  // Other simple markdown
-  parsedHtml = parsedHtml.replace(
-    /(?!<(code|pre)[^<]*|<\/)[*]{2}([^*\n]+)[*]{2}(?![^<]*<\/(code|pre)>)/g,
-    '<b>$2</b>',
-  );
-  parsedHtml = parsedHtml.replace(
-    /(?!<(code|pre)[^<]*|<\/)[_]{2}([^_\n]+)[_]{2}(?![^<]*<\/(code|pre)>)/g,
-    '<i>$2</i>',
-  );
-  parsedHtml = parsedHtml.replace(
-    /(?!<(code|pre)[^<]*|<\/)[~]{2}([^~\n]+)[~]{2}(?![^<]*<\/(code|pre)>)/g,
-    '<s>$2</s>',
-  );
-  parsedHtml = parsedHtml.replace(
-    /(?!<(code|pre)[^<]*|<\/)[|]{2}([^|\n]+)[|]{2}(?![^<]*<\/(code|pre)>)/g,
-    `<span data-entity-type="${ApiMessageEntityTypes.Spoiler}">$2</span>`,
-  );
+//   // Other simple markdown
+//   parsedHtml = parsedHtml.replace(
+//     /(?!<(code|pre)[^<]*|<\/)[*]{2}([^*\n]+)[*]{2}(?![^<]*<\/(code|pre)>)/g,
+//     '<b>$2</b>',
+//   );
+//   parsedHtml = parsedHtml.replace(
+//     /(?!<(code|pre)[^<]*|<\/)[_]{2}([^_\n]+)[_]{2}(?![^<]*<\/(code|pre)>)/g,
+//     '<i>$2</i>',
+//   );
+//   parsedHtml = parsedHtml.replace(
+//     /(?!<(code|pre)[^<]*|<\/)[~]{2}([^~\n]+)[~]{2}(?![^<]*<\/(code|pre)>)/g,
+//     '<s>$2</s>',
+//   );
+//   parsedHtml = parsedHtml.replace(
+//     /(?!<(code|pre)[^<]*|<\/)[|]{2}([^|\n]+)[|]{2}(?![^<]*<\/(code|pre)>)/g,
+//     `<span data-entity-type="${ApiMessageEntityTypes.Spoiler}">$2</span>`,
+//   );
 
-  return parsedHtml;
-}
+//   return parsedHtml;
+// }
 
-function parseMarkdownLinks(html: string) {
-  return html.replace(new RegExp(`\\[([^\\]]+?)]\\((${RE_LINK_TEMPLATE}+?)\\)`, 'g'), (_, text, link) => {
-    const url = link.includes('://') ? link : link.includes('@') ? `mailto:${link}` : `https://${link}`;
-    return `<a href="${url}">${text}</a>`;
-  });
-}
+// function parseMarkdownLinks(html: string) {
+//   return html.replace(new RegExp(`\\[([^\\]]+?)]\\((${RE_LINK_TEMPLATE}+?)\\)`, 'g'), (_, text, link) => {
+//     const url = link.includes('://') ? link : link.includes('@') ? `mailto:${link}` : `https://${link}`;
+//     return `<a href="${url}">${text}</a>`;
+//   });
+// }
 
 function getEntityDataFromNode(
   node: ChildNode,
@@ -155,12 +182,25 @@ function getEntityDataFromNode(
     };
   }
 
-  const rawIndex = rawText.indexOf(node.textContent, textIndex);
+  const textContent = getNodeInnerText(node)!;
+  const rawIndex = rawText.indexOf(textContent, textIndex);
   // In some cases, last text entity ends with a newline (which gets trimmed from `rawText`).
   // In this case, `rawIndex` would return `-1`, so we use `textIndex` instead.
   const index = rawIndex >= 0 ? rawIndex : textIndex;
   const offset = rawText.substring(0, index).length;
-  const { length } = rawText.substring(index, index + node.textContent.length);
+  const { length } = rawText.substring(index, index + textContent.length);
+
+  if (type === ApiMessageEntityTypes.Blockquote) {
+    return {
+      index,
+      entity: {
+        type,
+        offset,
+        length,
+        collapsed: (node as HTMLElement).dataset.collapsed === "true" || undefined
+      },
+    };
+  }
 
   if (type === ApiMessageEntityTypes.TextUrl) {
     return {
@@ -219,14 +259,14 @@ function getEntityDataFromNode(
   };
 }
 
-function getEntityTypeFromNode(node: ChildNode): ApiMessageEntityTypes | undefined {
+export function getEntityTypeFromNode(node: ChildNode): ApiMessageEntityTypes | undefined {
   if (node instanceof HTMLElement && node.dataset.entityType) {
     return node.dataset.entityType as ApiMessageEntityTypes;
   }
 
-  if (ENTITY_CLASS_BY_NODE_NAME[node.nodeName]) {
-    return ENTITY_CLASS_BY_NODE_NAME[node.nodeName];
-  }
+  // if (ENTITY_CLASS_BY_NODE_NAME[node.nodeName]) {
+  //   return ENTITY_CLASS_BY_NODE_NAME[node.nodeName];
+  // }
 
   if (node.nodeName === 'A') {
     const anchor = node as HTMLAnchorElement;

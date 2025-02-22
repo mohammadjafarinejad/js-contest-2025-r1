@@ -32,11 +32,13 @@ import MenuItem from '../../ui/MenuItem';
 import WebPage from '../message/WebPage';
 
 import './WebPagePreview.scss';
+import { MessageInputRefType, useMessageInputEvent } from '../../../contest/text-editor';
 
 type OwnProps = {
   chatId: string;
   threadId: ThreadId;
-  getHtml: Signal<string>;
+  // getHtml: Signal<string>;
+  textEditorRef: MessageInputRefType;
   isEditing: boolean;
   isDisabled?: boolean;
 };
@@ -54,7 +56,8 @@ const RE_LINK = new RegExp(RE_LINK_TEMPLATE, 'i');
 const WebPagePreview: FC<OwnProps & StateProps> = ({
   chatId,
   threadId,
-  getHtml,
+  // getHtml,
+  textEditorRef,
   isDisabled,
   webPagePreview,
   noWebPage,
@@ -72,6 +75,7 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
   const lang = useOldLang();
 
   const formattedTextWithLinkRef = useRef<ApiFormattedText>();
+  const {isMessageInputChanged} = useMessageInputEvent(textEditorRef);
 
   // eslint-disable-next-line no-null/no-null
   const ref = useRef<HTMLDivElement>(null);
@@ -80,7 +84,9 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
   const isSmallerMedia = attachmentSettings.webPageMediaSize === 'small';
 
   const detectLinkDebounced = useDebouncedResolver(() => {
-    const formattedText = parseHtmlAsFormattedText(getHtml());
+    if (!textEditorRef.current) return;
+    // const formattedText = parseHtmlAsFormattedText(getHtml());
+    const formattedText = textEditorRef.current.getFormattedText();
     const linkEntity = formattedText.entities?.find((entity): entity is ApiMessageEntityTextUrl => (
       entity.type === ApiMessageEntityTypes.TextUrl
     ));
@@ -88,9 +94,9 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
     formattedTextWithLinkRef.current = formattedText;
 
     return linkEntity?.url || formattedText.text.match(RE_LINK)?.[0];
-  }, [getHtml], DEBOUNCE_MS, true);
+  }, [isMessageInputChanged], DEBOUNCE_MS, true);
 
-  const getLink = useDerivedSignal(detectLinkDebounced, [detectLinkDebounced, getHtml], true);
+  const getLink = useDerivedSignal(detectLinkDebounced, [detectLinkDebounced, isMessageInputChanged], true);
 
   useEffect(() => {
     const link = getLink();
@@ -110,8 +116,9 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
   }, [chatId, clearWebPagePreview, threadId, toggleMessageWebPage]);
 
   const isShown = useDerivedState(() => {
-    return Boolean(webPagePreview && getHtml() && !noWebPage && !isDisabled);
-  }, [isDisabled, getHtml, noWebPage, webPagePreview]);
+    // return Boolean(webPagePreview && getHtml() && !noWebPage && !isDisabled);
+    return Boolean(webPagePreview && !textEditorRef.current?.isHtmlEmpty() && !noWebPage && !isDisabled);
+  }, [isDisabled, isMessageInputChanged, noWebPage, webPagePreview]);
   const { shouldRender, transitionClassNames } = useShowTransitionDeprecated(isShown);
 
   const hasMediaSizeOptions = webPagePreview?.hasLargeMedia;

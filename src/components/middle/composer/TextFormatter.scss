@@ -120,10 +120,12 @@
     border-radius: var(--border-radius-messages-small);
     flex-shrink: 0;
     cursor: var(--custom-cursor, pointer);
+    --icon-fill: var(--color-text-secondary);
 
     &.active {
       background-color: var(--color-primary) !important;
       color: white;
+      --icon-fill: white;
     }
 
     &.disabled {

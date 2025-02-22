@@ -38,9 +38,55 @@
   &--active {
     cursor: var(--custom-cursor, default);
     color: var(--color-primary);
+    --folder-icon-fill: var(--color-primary);
 
     .platform {
       opacity: 1 !important;
+    }
+  }
+
+  .Tab_icon {
+    display: none;
+  }
+
+  &.vertical {
+    width: 100%;
+    font-size: 0.625rem;
+    flex-direction: column;
+    padding: 0.6rem 0;
+    overflow-y: auto;
+    align-items: center;
+
+    .platform {
+      display: none;
+    }
+
+    .Tab_icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background-color: transparent;
+      width: var(--left-tab-icon-size);
+      height: var(--left-tab-icon-size);
+      --custom-emoji-size: var(--left-tab-icon-size);
+      gap: 2px;
+
+      .badge {
+        position: absolute;
+        right: -0.3rem;
+        top: -0.05rem;
+        background: var(--color-primary) !important;
+        z-index: 1;
+      }
+    }
+
+    .Tab_inner {
+      justify-content: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
     }
   }
 

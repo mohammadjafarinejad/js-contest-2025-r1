@@ -18,6 +18,7 @@ import StickerView from './StickerView';
 import styles from './CustomEmoji.module.scss';
 
 import blankImg from '../../assets/blank.png';
+import { handleClickOnNonContentEditable } from '../../contest/text-editor';
 
 type OwnProps = {
   ref?: React.RefObject<HTMLDivElement>;
@@ -41,9 +42,16 @@ type OwnProps = {
   observeIntersectionForPlaying?: ObserveFn;
   onClick?: NoneToVoidFunction;
   onAnimationEnd?: NoneToVoidFunction;
+  isInEditMode?: boolean;
 };
 
 const STICKER_SIZE = 20;
+
+export function getCustomEmojiInnerText(node: Node) {
+  if (!(node instanceof HTMLElement) || node.dataset.entityType !== ApiMessageEntityTypes.CustomEmoji) return;
+
+  return { text: node.dataset.alt };
+}
 
 const CustomEmoji: FC<OwnProps> = ({
   ref,
@@ -67,6 +75,7 @@ const CustomEmoji: FC<OwnProps> = ({
   observeIntersectionForPlaying,
   onClick,
   onAnimationEnd,
+  isInEditMode
 }) => {
   // eslint-disable-next-line no-null/no-null
   let containerRef = useRef<HTMLDivElement>(null);
@@ -109,7 +118,7 @@ const CustomEmoji: FC<OwnProps> = ({
 
   const isHq = customEmoji?.stickerSetInfo && selectIsAlwaysHighPriorityEmoji(getGlobal(), customEmoji.stickerSetInfo);
 
-  return (
+  const emojiElement = () => (
     <div
       ref={containerRef}
       className={buildClassName(
@@ -120,6 +129,7 @@ const CustomEmoji: FC<OwnProps> = ({
       )}
       onClick={onClick}
       onAnimationEnd={onAnimationEnd}
+      contentEditable={"false"}
       data-entity-type={ApiMessageEntityTypes.CustomEmoji}
       data-document-id={documentId}
       data-alt={customEmoji?.emoji}
@@ -130,8 +140,8 @@ const CustomEmoji: FC<OwnProps> = ({
           className={styles.highlightCatch}
           src={blankImg}
           alt={customEmoji?.emoji}
-          data-entity-type={ApiMessageEntityTypes.CustomEmoji}
-          data-document-id={documentId}
+          // data-entity-type={ApiMessageEntityTypes.CustomEmoji}
+          // data-document-id={documentId}
           draggable={false}
         />
       )}
@@ -164,6 +174,7 @@ const CustomEmoji: FC<OwnProps> = ({
       )}
     </div>
   );
+  return isInEditMode ? <span onClick={handleClickOnNonContentEditable}>{emojiElement()}</span> : emojiElement();
 };
 
 export default memo(CustomEmoji);

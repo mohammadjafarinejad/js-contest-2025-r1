@@ -1,4 +1,4 @@
-import type { FC } from '../../../lib/teact/teact';
+import type { FC, RefObject } from '../../../lib/teact/teact';
 import React, {
   memo, useEffect, useMemo,
   useRef, useState,
@@ -81,8 +81,10 @@ const EmojiPicker: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const headerRef = useRef<HTMLDivElement>(null);
 
-  const [categories, setCategories] = useState<EmojiCategoryData[]>();
-  const [emojis, setEmojis] = useState<AllEmojis>();
+  // const [categories, setCategories] = useState<EmojiCategoryData[]>();
+  // const [emojis, setEmojis] = useState<AllEmojis>();
+  const { categories, emojis } = useEmojiData();
+
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
   const { isMobile } = useAppLayout();
   const {
@@ -155,22 +157,21 @@ const EmojiPicker: FC<OwnProps & StateProps> = ({
   }, [categories, lang, recentEmojis]);
 
   // Initialize data on first render.
-  useEffect(() => {
-    setTimeout(() => {
-      const exec = () => {
-        setCategories(emojiData.categories);
+  // useEffect(() => {
+  //   setTimeout(() => {
+  //     const exec = () => {
+  //       setCategories(emojiData!.categories);
+  //       setEmojis(emojiData!.emojis as AllEmojis);
+  //     };
 
-        setEmojis(emojiData.emojis as AllEmojis);
-      };
-
-      if (emojiData) {
-        exec();
-      } else {
-        ensureEmojiData()
-          .then(exec);
-      }
-    }, OPEN_ANIMATION_DELAY);
-  }, []);
+  //     if (emojiData) {
+  //       exec();
+  //     } else {
+  //       ensureEmojiData()
+  //         .then(exec);
+  //     }
+  //   }, OPEN_ANIMATION_DELAY);
+  // }, []);
 
   const selectCategory = useLastCallback((index: number) => {
     setActiveCategoryIndex(index);
@@ -189,23 +190,23 @@ const EmojiPicker: FC<OwnProps & StateProps> = ({
     onEmojiSelect(emoji, name);
   });
 
-  function renderCategoryButton(category: EmojiCategoryData, index: number) {
-    const icon = ICONS_BY_CATEGORY[category.id];
+  // function renderCategoryButton(category: EmojiCategoryData, index: number) {
+  //   const icon = ICONS_BY_CATEGORY[category.id];
 
-    return icon && (
-      <Button
-        className={`symbol-set-button ${index === activeCategoryIndex ? 'activated' : ''}`}
-        round
-        faded
-        color="translucent"
-        // eslint-disable-next-line react/jsx-no-bind
-        onClick={() => selectCategory(index)}
-        ariaLabel={category.name}
-      >
-        <Icon name={icon} />
-      </Button>
-    );
-  }
+  //   return icon && (
+  //     <Button
+  //       className={`symbol-set-button ${index === activeCategoryIndex ? 'activated' : ''}`}
+  //       round
+  //       faded
+  //       color="translucent"
+  //       // eslint-disable-next-line react/jsx-no-bind
+  //       onClick={() => selectCategory(index)}
+  //       ariaLabel={category.name}
+  //     >
+  //       <Icon name={icon} />
+  //     </Button>
+  //   );
+  // }
 
   const containerClassName = buildClassName('EmojiPicker', className);
 
@@ -229,7 +230,7 @@ const EmojiPicker: FC<OwnProps & StateProps> = ({
         className={headerClassName}
         dir={lang.isRtl ? 'rtl' : undefined}
       >
-        {allCategories.map(renderCategoryButton)}
+        {allCategories.map((c, i) => (renderCategoryButton2(c, i, activeCategoryIndex)))}
       </div>
       <div
         ref={containerRef}
@@ -251,6 +252,66 @@ const EmojiPicker: FC<OwnProps & StateProps> = ({
   );
 };
 
+export function useEmojiPickerObservers(
+  containerRef: React.RefObject<HTMLDivElement>,
+  // headerRef: RefObject<HTMLDivElement>,
+  // idPrefix: string,
+  // isHidden?: boolean,
+) {
+  // const stickerSetIntersectionsRef = useRef<boolean[]>([]);
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
+  // const [activeSetIndex, setActiveSetIndex] = useState<number>(0);
+
+  const { observe: observeIntersection } = useIntersectionObserver({
+    rootRef: containerRef,
+    throttleMs: INTERSECTION_THROTTLE,
+  }, (entries) => {
+    entries.forEach((entry) => {
+      const { id } = entry.target as HTMLDivElement;
+      if (!id || !id.startsWith('emoji-category-')) {
+        return;
+      }
+
+      const index = Number(id.replace('emoji-category-', ''));
+      categoryIntersections[index] = entry.isIntersecting;
+    });
+
+    const minIntersectingIndex = categoryIntersections.reduce((lowestIndex, isIntersecting, index) => {
+      return isIntersecting && index < lowestIndex ? index : lowestIndex;
+    }, Infinity);
+
+    if (minIntersectingIndex === Infinity) {
+      return;
+    }
+
+    setActiveCategoryIndex(minIntersectingIndex);
+  });
+
+  return {
+    activeCategoryIndex,
+    observeIntersection,
+    //   selectStickerSet,
+  };
+}
+
+function renderCategoryButton2(category: EmojiCategoryData, index: number, activeCategoryIndex: number) {
+  const icon = ICONS_BY_CATEGORY[category.id];
+
+  return icon && (
+    <Button
+      className={`symbol-set-button ${index === activeCategoryIndex ? 'activated' : ''}`}
+      round
+      faded
+      color="translucent"
+      // eslint-disable-next-line react/jsx-no-bind
+      onClick={() => { }}
+      ariaLabel={category.name}
+    >
+      <Icon name={icon} />
+    </Button>
+  );
+}
+
 async function ensureEmojiData() {
   if (!emojiDataPromise) {
     emojiDataPromise = import('emoji-data-ios/emoji-data.json');
@@ -260,6 +321,39 @@ async function ensureEmojiData() {
   }
 
   return emojiDataPromise;
+}
+
+async function getAllEmojis() {
+  await ensureEmojiData();
+  return emojiData.emojis as AllEmojis;
+}
+
+function useEmojiData() {
+  const [categories, setCategories] = useState<EmojiCategoryData[] | undefined>();
+  const [emojis, setEmojis] = useState<AllEmojis | undefined>();
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      await ensureEmojiData();
+      if (emojiData) {
+        setCategories(emojiData.categories);
+        setEmojis(emojiData.emojis as AllEmojis);
+        setIsLoaded(true);
+      }
+    };
+
+    const timer = setTimeout(fetchData, OPEN_ANIMATION_DELAY);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return { categories, emojis, isLoaded };
+}
+
+export {
+  useEmojiData,
+  getAllEmojis,
+  renderCategoryButton2
 }
 
 export default memo(withGlobal<OwnProps>(

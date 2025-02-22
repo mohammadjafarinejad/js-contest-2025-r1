@@ -26,6 +26,7 @@ import useResizeObserver from '../../../../hooks/useResizeObserver';
 import useThrottledCallback from '../../../../hooks/useThrottledCallback';
 import useBackgroundMode from '../../../../hooks/window/useBackgroundMode';
 import useDevicePixelRatio from '../../../../hooks/window/useDevicePixelRatio';
+import { MessageInputRefType } from '../../../../contest/text-editor';
 
 const SIZE = 1.25 * REM;
 const THROTTLE_MS = 300;
@@ -38,7 +39,8 @@ type CustomEmojiPlayer = {
 };
 
 export default function useInputCustomEmojis(
-  getHtml: Signal<string>,
+  // getHtml: Signal<string>,
+  messageInputRef: MessageInputRefType,
   inputRef: React.RefObject<HTMLDivElement>,
   sharedCanvasRef: React.RefObject<HTMLCanvasElement>,
   sharedCanvasHqRef: React.RefObject<HTMLCanvasElement>,
@@ -141,7 +143,23 @@ export default function useInputCustomEmojis(
   }, []);
 
   useEffect(() => {
-    if (!getHtml() || !inputRef.current || !sharedCanvasRef.current || !isActive || !isReady) {
+    if (!messageInputRef.current) return;
+    const unsubscribe = messageInputRef.current.listen(() => {
+      if (!messageInputRef.current?.isTouched() || !inputRef.current || !sharedCanvasRef.current || !isActive || !isReady) {
+        clearPlayers(Array.from(playersById.current.keys()));
+        return;
+      }
+
+      // Wait one frame for DOM to update
+      requestMeasure(() => {
+        synchronizeElements();
+      });
+    });
+    return unsubscribe;
+  }, [messageInputRef]);
+
+  useEffect(() => {
+    if (!messageInputRef.current?.isTouched() || !inputRef.current || !sharedCanvasRef.current || !isActive || !isReady) {
       clearPlayers(Array.from(playersById.current.keys()));
       return;
     }
@@ -150,7 +168,7 @@ export default function useInputCustomEmojis(
     requestMeasure(() => {
       synchronizeElements();
     });
-  }, [getHtml, synchronizeElements, inputRef, clearPlayers, sharedCanvasRef, isActive, isReady]);
+  }, [messageInputRef, synchronizeElements, inputRef, clearPlayers, sharedCanvasRef, isActive, isReady]);
 
   useLayoutEffect(() => {
     document.documentElement.style.setProperty('--input-custom-emoji-filter', colorFilter || 'none');

@@ -20,6 +20,7 @@ import { useKeyboardNavigation } from './hooks/useKeyboardNavigation';
 import ChatCommand from './ChatCommand';
 
 import styles from './ChatCommandTooltip.module.scss';
+import { MessageInputRefType } from '../../../contest/text-editor';
 
 export type OwnProps = {
   isOpen: boolean;
@@ -29,7 +30,8 @@ export type OwnProps = {
   quickReplies?: ApiQuickReply[];
   quickReplyMessages?: Record<number, ApiMessage>;
   self: ApiUser;
-  getHtml: Signal<string>;
+  // getHtml: Signal<string>;
+  textEditorRef: MessageInputRefType;
   onClick: NoneToVoidFunction;
   onClose: NoneToVoidFunction;
 };
@@ -48,7 +50,8 @@ const ChatCommandTooltip: FC<OwnProps> = ({
   quickReplies,
   quickReplyMessages,
   self,
-  getHtml,
+  // getHtml,
+  textEditorRef,
   onClick,
   onClose,
 }) => {
@@ -87,7 +90,8 @@ const ChatCommandTooltip: FC<OwnProps> = ({
   }, [quickReplies, quickReplyMessages]);
 
   const handleKeyboardSelect = useLastCallback((item: ApiBotCommand | QuickReplyWithDescription) => {
-    if (!item.command.startsWith(getHtml().slice(1))) {
+    if (!textEditorRef.current) return false;
+    if (!item.command.startsWith(textEditorRef.current.getHtml().slice(1))) {
       return false;
     }
 

@@ -8,6 +8,7 @@ import { prepareForRegExp } from '../helpers/prepareForRegExp';
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
 import useDerivedSignal from '../../../../hooks/useDerivedSignal';
 import useFlag from '../../../../hooks/useFlag';
+import { MessageInputRefType, useMessageInputEvent } from '../../../../contest/text-editor';
 
 const RE_COMMAND = /^\/([\w@]{1,32})?$/i;
 
@@ -15,7 +16,8 @@ const THROTTLE = 300;
 
 export default function useChatCommandTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
+  // getHtml: Signal<string>,
+  textEditorRef: MessageInputRefType,
   botCommands?: ApiBotCommand[] | false,
   chatBotCommands?: ApiBotCommand[],
   quickReplies?: Record<number, ApiQuickReply>,
@@ -23,14 +25,17 @@ export default function useChatCommandTooltip(
   const [filteredBotCommands, setFilteredBotCommands] = useState<ApiBotCommand[] | undefined>();
   const [filteredQuickReplies, setFilteredQuickReplies] = useState<ApiQuickReply[] | undefined>();
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
+  const {isMessageInputChanged} = useMessageInputEvent(textEditorRef);
 
   const detectCommandThrottled = useThrottledResolver(() => {
-    const html = getHtml();
+    if (!textEditorRef.current) return;
+    // const html = getHtml();
+    const html = textEditorRef.current.getHtml();
     return isEnabled && html.startsWith('/') ? prepareForRegExp(html).match(RE_COMMAND)?.[0].trim() : undefined;
-  }, [getHtml, isEnabled], THROTTLE);
+  }, [isMessageInputChanged, isEnabled], THROTTLE);
 
   const getCommand = useDerivedSignal(
-    detectCommandThrottled, [detectCommandThrottled, getHtml], true,
+    detectCommandThrottled, [detectCommandThrottled, isMessageInputChanged], true,
   );
 
   useEffect(() => {
@@ -58,7 +63,7 @@ export default function useChatCommandTooltip(
     );
   }, [getCommand, botCommands, chatBotCommands, quickReplies]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, isMessageInputChanged]);
 
   return {
     isOpen: Boolean((filteredBotCommands?.length || filteredQuickReplies?.length) && !isManuallyClosed),

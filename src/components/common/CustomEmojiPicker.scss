@@ -1,0 +1,91 @@
+.StickerPicker {
+  .header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    transition: 0.2s ease;
+    position: relative;
+
+    &.hide {
+      opacity: 0;
+      height: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .emoji_categories {
+      display: flex;
+      flex-direction: row;
+      width: 35%;
+      min-width: 35%;
+      background-color: #EAEFEA;
+      border-radius: 2rem;
+      overflow-x: auto;
+      white-space: nowrap;
+
+      button {
+        width: auto !important;
+        height: 2rem !important;
+
+        i {
+          font-size: 1.2rem !important;
+        }
+      }
+
+      .symbol-set-button {
+        padding: 0;
+        margin: 0;
+      }
+    }
+  }
+
+  .emoticons {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin: 1rem 0;
+    --folder-icon-fill: #9BA0A4;
+  }
+
+  .emoticons_search_input {
+    width: auto;
+    height: 2.5rem;
+    position: relative;
+    background-color: #F3F3F4 !important;
+    border: none;
+    border-radius: 0.625rem;
+    padding: 0;
+    transition: 0.3s ease;
+
+    &.has-focus {
+      margin-top: 0.5rem;
+    }
+
+    &.has-query {
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .icon-container-left {
+      .icon {
+        color: #A2A2A3 !important;
+      }
+    }
+
+    input {
+      color: black;
+      border-radius: 0.625rem;
+
+      &:focus,
+      &:hover,
+      &:active {
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      &::placeholder {
+        color: #9C9C9D !important;
+      }
+    }
+  }
+}

@@ -11,6 +11,7 @@ import useDerivedState from '../../../../hooks/useDerivedState';
 import useFlag from '../../../../hooks/useFlag';
 import useLastCallback from '../../../../hooks/useLastCallback';
 import useSyncEffect from '../../../../hooks/useSyncEffect';
+import { MessageInputRefType, useMessageInputEvent } from '../../../../contest/text-editor';
 
 const THROTTLE = 300;
 const INLINE_BOT_QUERY_REGEXP = /^@([a-z0-9_]{1,32})[\u00A0\u0020]+(.*)/is;
@@ -27,20 +28,24 @@ const tempEl = document.createElement('div');
 export default function useInlineBotTooltip(
   isEnabled: boolean,
   chatId: string,
-  getHtml: Signal<string>,
+  // getHtml: Signal<string>,
+  textEditorRef: MessageInputRefType,
   inlineBots?: Record<string, false | InlineBotSettings>,
 ) {
   const { queryInlineBot, resetInlineBot, resetAllInlineBots } = getActions();
+  const {isMessageInputChanged} = useMessageInputEvent(textEditorRef);
 
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const extractBotQueryThrottled = useThrottledResolver(() => {
-    const html = getHtml();
+    if (!textEditorRef.current) return MEMO_NO_RESULT;
+    // const html = getHtml();
+    const html = textEditorRef.current.getHtml();
     return isEnabled && html.startsWith('@') ? parseBotQuery(html) : MEMO_NO_RESULT;
-  }, [getHtml, isEnabled], THROTTLE);
+  }, [isMessageInputChanged, isEnabled], THROTTLE);
   const {
     username, query, canShowHelp, usernameLowered,
-  } = useDerivedState(extractBotQueryThrottled, [extractBotQueryThrottled, getHtml], true);
+  } = useDerivedState(extractBotQueryThrottled, [extractBotQueryThrottled, isMessageInputChanged], true);
 
   useSyncEffect(([prevUsername]) => {
     if (prevUsername) {
@@ -56,7 +61,7 @@ export default function useInlineBotTooltip(
     });
   }, [chatId, query, queryInlineBot, usernameLowered]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, isMessageInputChanged]);
 
   const {
     id: botId,

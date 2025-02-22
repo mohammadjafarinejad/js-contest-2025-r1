@@ -15,6 +15,8 @@ import { preparePastedHtml } from '../helpers/cleanHtml';
 import getFilesFromDataTransferItems from '../helpers/getFilesFromDataTransferItems';
 
 import useOldLang from '../../../../hooks/useOldLang';
+import { Contest } from '../../../../contest/contest';
+const logger = Contest.createLogger("useClipboardPaste.ts");
 
 const TYPE_HTML = 'text/html';
 const DOCUMENT_TYPE_WORD = 'urn:schemas-microsoft-com:office:word';
@@ -59,6 +61,7 @@ const useClipboardPaste = (
 
       const pastedText = e.clipboardData.getData('text');
       const html = e.clipboardData.getData('text/html');
+      logger.log("handlePaste() pastedText:", pastedText, "html:", html);
 
       let pastedFormattedText = html ? parseHtmlAsFormattedText(
         preparePastedHtml(html), undefined, true,

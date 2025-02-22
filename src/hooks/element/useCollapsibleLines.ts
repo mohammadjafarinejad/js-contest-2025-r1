@@ -16,6 +16,7 @@ export default function useCollapsibleLines<T extends HTMLElement, C extends HTM
   maxLinesBeforeCollapse: number,
   cutoutRef?: RefObject<C>,
   isDisabled?: boolean,
+  isInEditMode?: boolean
 ) {
   const isFirstRenderRef = useRef(true);
   const cutoutHeightRef = useRef<number | undefined>();
@@ -53,26 +54,26 @@ export default function useCollapsibleLines<T extends HTMLElement, C extends HTM
     WINDOW_RESIZE_LINE_RECALC_DEBOUNCE,
   );
 
-  useLayoutEffect(() => {
-    if (!isDisabled && isFirstRenderRef.current) {
-      requestForcedReflow(() => {
-        recalculateTextLines();
+  // useLayoutEffect(() => {
+  //   if (!isDisabled && isFirstRenderRef.current) {
+  //     requestForcedReflow(() => {
+  //       recalculateTextLines();
 
-        return () => {
-          isFirstRenderRef.current = false;
-          const element = (cutoutRef || ref).current;
-          if (!element) return;
-          element.style.maxHeight = cutoutHeightRef.current ? `${cutoutHeightRef.current}px` : '';
-        };
-      });
-    }
-  }, [cutoutRef, isDisabled, recalculateTextLines, ref]);
+  //       return () => {
+  //         isFirstRenderRef.current = false;
+  //         const element = (cutoutRef || ref).current;
+  //         if (!element) return;
+  //         element.style.maxHeight = cutoutHeightRef.current ? `${cutoutHeightRef.current}px` : '';
+  //       };
+  //     });
+  //   }
+  // }, [cutoutRef, isDisabled, recalculateTextLines, ref]);
 
   // Parent resize is triggered on every collapse/expand, so we do recalculation only on window resize to save resources
   const { width: windowWidth } = useWindowSize();
   useEffect(() => {
     if (!isDisabled) {
-      if (isFirstRenderRef.current) return;
+      // if (isFirstRenderRef.current) return;
 
       debouncedRecalcTextLines();
     } else {
@@ -80,6 +81,22 @@ export default function useCollapsibleLines<T extends HTMLElement, C extends HTM
       setIsCollapsed(false);
     }
   }, [debouncedRecalcTextLines, isDisabled, windowWidth]);
+
+  // Recalculate text lines when content changes in edit mode
+  useEffect(() => {
+    if (!isInEditMode || !ref.current) return;
+    const observer = new MutationObserver(() => {
+      requestMeasure(recalculateTextLines);
+    });
+    observer.observe(ref.current, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    return () => {
+      observer.disconnect();
+    };
+  }, [isInEditMode, ref]);
 
   return {
     isCollapsed,

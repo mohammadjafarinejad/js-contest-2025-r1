@@ -15,6 +15,7 @@ import useLastCallback from '../../hooks/useLastCallback';
 
 type OwnProps = {
   url?: string;
+  type?: ApiMessageEntityTypes.Url | ApiMessageEntityTypes.TextUrl;
   text: string;
   className?: string;
   children?: TeactNode;
@@ -23,6 +24,7 @@ type OwnProps = {
 
 const SafeLink = ({
   url,
+  type,
   text,
   className,
   children,
@@ -60,7 +62,7 @@ const SafeLink = ({
       className={classNames}
       onClick={handleClick}
       dir={isRtl ? 'rtl' : 'auto'}
-      data-entity-type={ApiMessageEntityTypes.Url}
+      data-entity-type={type}
     >
       {content}
     </a>

@@ -19,6 +19,7 @@ import CodeBlock from '../code/CodeBlock';
 import CustomEmoji from '../CustomEmoji';
 import SafeLink from '../SafeLink';
 import Spoiler from '../spoiler/Spoiler';
+import { MarkdownMarkerRenderer } from '../../../contest/text-editor';
 
 interface IOrganizedEntity {
   entity: ApiMessageEntity;
@@ -49,6 +50,7 @@ export function renderTextWithEntities({
   noCustomEmojiPlayback,
   focusedQuote,
   isInSelectMode,
+  isInEditMode
 }: {
   text: string;
   entities?: ApiMessageEntity[];
@@ -69,6 +71,7 @@ export function renderTextWithEntities({
   noCustomEmojiPlayback?: boolean;
   focusedQuote?: string;
   isInSelectMode?: boolean;
+  isInEditMode?: boolean;
 }) {
   if (!entities?.length) {
     return renderMessagePart({
@@ -177,6 +180,7 @@ export function renderTextWithEntities({
         forcePlayback,
         noCustomEmojiPlayback,
         isInSelectMode,
+        isInEditMode
       });
 
     if (Array.isArray(newEntity)) {
@@ -256,7 +260,7 @@ function renderMessagePart({
   shouldRenderAsHtml,
   isSimple,
   noLineBreaks,
-} : {
+}: {
   content: TextPart | TextPart[];
   highlight?: string;
   focusedQuote?: string;
@@ -373,7 +377,7 @@ function organizeEntity(
   };
 }
 
-function processEntity({
+export function processEntity({
   entity,
   entityContent,
   nestedEntityContent,
@@ -393,7 +397,8 @@ function processEntity({
   forcePlayback,
   noCustomEmojiPlayback,
   isInSelectMode,
-} : {
+  isInEditMode
+}: {
   entity: ApiMessageEntity;
   entityContent: TextPart;
   nestedEntityContent: TextPart[];
@@ -413,22 +418,25 @@ function processEntity({
   forcePlayback?: boolean;
   noCustomEmojiPlayback?: boolean;
   isInSelectMode?: boolean;
+  isInEditMode?: boolean;
 }) {
   const entityText = typeof entityContent === 'string' && entityContent;
   const renderedContent = nestedEntityContent.length ? nestedEntityContent : entityContent;
 
   function renderNestedMessagePart() {
-    return renderMessagePart({
-      content: renderedContent,
-      highlight,
-      focusedQuote,
-      emojiSize,
-      isSimple,
-      noLineBreaks,
-    });
+    return <MarkdownMarkerRenderer disableRendering={!isInEditMode} entityType={entity.type}>
+      {renderMessagePart({
+        content: renderedContent,
+        highlight,
+        focusedQuote,
+        emojiSize,
+        isSimple,
+        noLineBreaks,
+      })}
+    </MarkdownMarkerRenderer>
   }
 
-  if (!entityText) {
+  if (entityText === false) {
     return renderNestedMessagePart();
   }
 
@@ -453,6 +461,7 @@ function processEntity({
           withTranslucentThumb={withTranslucentThumbs}
           forceAlways={forcePlayback}
           noPlay={noCustomEmojiPlayback}
+          isInEditMode={isInEditMode}
         />
       );
     }
@@ -464,7 +473,7 @@ function processEntity({
       return <strong data-entity-type={entity.type}>{renderNestedMessagePart()}</strong>;
     case ApiMessageEntityTypes.Blockquote:
       return (
-        <Blockquote canBeCollapsible={entity.canCollapse} isToggleDisabled={isInSelectMode}>
+        <Blockquote collapsed={entity.collapsed} isToggleDisabled={isInSelectMode} isInEditMode={isInEditMode}>
           {renderNestedMessagePart()}
         </Blockquote>
       );
@@ -508,8 +517,8 @@ function processEntity({
     case ApiMessageEntityTypes.Code:
       return (
         <code
-          className={buildClassName('text-entity-code', 'clickable')}
-          onClick={handleCodeClick}
+          className={buildClassName('text-entity-code', !isInEditMode && 'clickable')}
+          onClick={isInEditMode ? undefined : handleCodeClick}
           role="textbox"
           tabIndex={0}
           data-entity-type={entity.type}
@@ -556,7 +565,7 @@ function processEntity({
         </a>
       );
     case ApiMessageEntityTypes.Pre:
-      return <CodeBlock text={entityText} language={entity.language} noCopy={isProtected} />;
+      return <CodeBlock text={entityText} language={entity.language} noCopy={isProtected} isInEditMode={isInEditMode} />;
     case ApiMessageEntityTypes.Strike:
       return <del data-entity-type={entity.type}>{renderNestedMessagePart()}</del>;
     case ApiMessageEntityTypes.TextUrl:
@@ -564,6 +573,7 @@ function processEntity({
       return (
         <SafeLink
           url={getLinkUrl(entityText, entity)}
+          type={entity.type as any}
           text={entityText}
         >
           {renderNestedMessagePart()}
@@ -572,7 +582,7 @@ function processEntity({
     case ApiMessageEntityTypes.Underline:
       return <ins data-entity-type={entity.type}>{renderNestedMessagePart()}</ins>;
     case ApiMessageEntityTypes.Spoiler:
-      return <Spoiler containerId={containerId}>{renderNestedMessagePart()}</Spoiler>;
+      return <Spoiler containerId={containerId} isInEditMode={isInEditMode}>{renderNestedMessagePart()}</Spoiler>;
     case ApiMessageEntityTypes.CustomEmoji:
       return (
         <CustomEmoji
@@ -588,6 +598,7 @@ function processEntity({
           withTranslucentThumb={withTranslucentThumbs}
           forceAlways={forcePlayback}
           noPlay={noCustomEmojiPlayback}
+          isInEditMode={isInEditMode}
         />
       );
     default:

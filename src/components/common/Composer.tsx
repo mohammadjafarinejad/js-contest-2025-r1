@@ -102,12 +102,12 @@ import buildClassName from '../../util/buildClassName';
 import { formatMediaDuration, formatVoiceRecordDuration } from '../../util/dates/dateFormat';
 import { processDeepLink } from '../../util/deeplink';
 import { tryParseDeepLink } from '../../util/deepLinkParser';
-import deleteLastCharacterOutsideSelection from '../../util/deleteLastCharacterOutsideSelection';
+// import deleteLastCharacterOutsideSelection from '../../util/deleteLastCharacterOutsideSelection';
 import { processMessageInputForCustomEmoji } from '../../util/emoji/customEmojiManager';
 import focusEditableElement from '../../util/focusEditableElement';
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
 import parseHtmlAsFormattedText from '../../util/parseHtmlAsFormattedText';
-import { insertHtmlInSelection } from '../../util/selection';
+// import { getHtmlBeforeSelection, insertHtmlInSelection } from '../../util/selection';
 import { getServerTime } from '../../util/serverTime';
 import { IS_IOS, IS_VOICE_RECORDING_SUPPORTED } from '../../util/windowEnvironment';
 import windowSize from '../../util/windowSize';
@@ -117,7 +117,7 @@ import { buildCustomEmojiHtml } from '../middle/composer/helpers/customEmoji';
 import { isSelectionInsideInput } from '../middle/composer/helpers/selection';
 import { getPeerColorClass } from './helpers/peerColor';
 import renderText from './helpers/renderText';
-import { getTextWithEntitiesAsHtml } from './helpers/renderTextWithEntities';
+// import { getTextWithEntitiesAsHtml } from './helpers/renderTextWithEntities';
 
 import useInterval from '../../hooks/schedulers/useInterval';
 import useTimeout from '../../hooks/schedulers/useTimeout';
@@ -175,6 +175,11 @@ import Icon from './icons/Icon';
 import ReactionAnimatedEmoji from './reactions/ReactionAnimatedEmoji';
 
 import './Composer.scss';
+import { Contest } from '../../contest/contest';
+import { moveChatBackgroundSmoothly } from '../../contest/animated-chat/AnimatedChatBackground';
+import { MessageInputController, useMessageInputEvent } from '../../contest/text-editor';
+import NewMessageInput from '../../contest/text-editor/NewMessageInput';
+const logger = Contest.createLogger("Composer.tsx");
 
 type ComposerType = 'messageList' | 'story';
 
@@ -417,12 +422,14 @@ const Composer: FC<OwnProps & StateProps> = ({
   const lang = useOldLang();
 
   // eslint-disable-next-line no-null/no-null
-  const inputRef = useRef<HTMLDivElement>(null);
+  // const inputRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<MessageInputController>(null);
+  const { isMessageInputChanged } = useMessageInputEvent(messageInputRef);
 
   // eslint-disable-next-line no-null/no-null
   const storyReactionRef = useRef<HTMLButtonElement>(null);
 
-  const [getHtml, setHtml] = useSignal('');
+  // const [getHtml, setHtml] = useSignal('');
   const [isMounted, setIsMounted] = useState(false);
   const getSelectionRange = useGetSelectionRange(editableInputCssSelector);
   const lastMessageSendTimeSeconds = useRef<number>();
@@ -447,7 +454,18 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const isSentStoryReactionHeart = sentStoryReaction && isSameReaction(sentStoryReaction, HEART_REACTION);
 
-  useEffect(processMessageInputForCustomEmoji, [getHtml]);
+  useEffect(() => {
+    processMessageInputForCustomEmoji();
+  }, [isMessageInputChanged]);
+
+  const canSendCustomEmoji = (emoji: ApiSticker, emojiSetId?: string) => {
+    if (!emoji.isFree && !isCurrentUserPremium && !isChatWithSelf && emojiSetId !== chatEmojiSetId) {
+      showCustomEmojiPremiumNotification();
+      return false;
+    }
+    return true;
+  }
+  // useEffect(processMessageInputForCustomEmoji, [getHtml]);
 
   const customEmojiNotificationNumber = useRef(0);
 
@@ -513,55 +531,69 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
   }, [hasWebPagePreview]);
 
-  const insertHtmlAndUpdateCursor = useLastCallback((newHtml: string, inInputId: string = editableInputId) => {
-    if (inInputId === editableInputId && isComposerBlocked) return;
-    const selection = window.getSelection()!;
-    let messageInput: HTMLDivElement;
-    if (inInputId === editableInputId) {
-      messageInput = document.querySelector<HTMLDivElement>(editableInputCssSelector)!;
-    } else {
-      messageInput = document.getElementById(inInputId) as HTMLDivElement;
-    }
-
-    if (selection.rangeCount) {
-      const selectionRange = selection.getRangeAt(0);
-      if (isSelectionInsideInput(selectionRange, inInputId)) {
-        insertHtmlInSelection(newHtml);
-        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
-        return;
-      }
-    }
-
-    setHtml(`${getHtml()}${newHtml}`);
-
-    // If selection is outside of input, set cursor at the end of input
-    requestNextMutation(() => {
-      focusEditableElement(messageInput);
-    });
+  const handleMessageSent = useLastCallback(() => {
+    moveChatBackgroundSmoothly();
   });
 
-  const insertTextAndUpdateCursor = useLastCallback((
-    text: string, inInputId: string = editableInputId,
+  const handleEmojiSelect = useLastCallback((
+    emoji: string | ApiSticker
   ) => {
-    const newHtml = renderText(text, ['escape_html', 'emoji_html', 'br_html'])
-      .join('')
-      .replace(/\u200b+/g, '\u200b');
-    insertHtmlAndUpdateCursor(newHtml, inInputId);
+    messageInputRef.current?.insertEmoji(emoji);
   });
+
+  // const insertHtmlAndUpdateCursor = useLastCallback((newHtml: string, inInputId: string = editableInputId) => {
+  //   if (inInputId === editableInputId && isComposerBlocked) return;
+  //   const selection = window.getSelection()!;
+  //   let messageInput: HTMLDivElement;
+  //   if (inInputId === editableInputId) {
+  //     messageInput = document.querySelector<HTMLDivElement>(editableInputCssSelector)!;
+  //   } else {
+  //     messageInput = document.getElementById(inInputId) as HTMLDivElement;
+  //   }
+
+  //   if (selection.rangeCount) {
+  //     const selectionRange = selection.getRangeAt(0);
+  //     if (isSelectionInsideInput(selectionRange, inInputId)) {
+  //       insertHtmlInSelection(newHtml);
+  //       messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+  //       return;
+  //     }
+  //   }
+
+  //   setHtml(`${getHtml()}${newHtml}`);
+
+  //   // If selection is outside of input, set cursor at the end of input
+  //   requestNextMutation(() => {
+  //     focusEditableElement(messageInput);
+  //   });
+  // });
+
+  // const insertTextAndUpdateCursor = useLastCallback((
+  //   text: string, inInputId: string = editableInputId,
+  // ) => {
+  //   textEditorRef.current?.insertTextAndUpdateCursor(text);
+  //   // const newHtml = renderText(text, ['escape_html', 'emoji_html', 'br_html'])
+  //   //   .join('')
+  //   //   .replace(/\u200b+/g, '\u200b');
+  //   // insertHtmlAndUpdateCursor(newHtml, inInputId);
+  // });
 
   const insertFormattedTextAndUpdateCursor = useLastCallback((
     text: ApiFormattedText, inInputId: string = editableInputId,
   ) => {
-    const newHtml = getTextWithEntitiesAsHtml(text);
-    insertHtmlAndUpdateCursor(newHtml, inInputId);
+    messageInputRef.current?.setup(text, {source: "composer"});
+    // const newHtml = getTextWithEntitiesAsHtml(text);
+    // insertHtmlAndUpdateCursor(newHtml, inInputId);
   });
 
-  const insertCustomEmojiAndUpdateCursor = useLastCallback((emoji: ApiSticker, inInputId: string = editableInputId) => {
-    insertHtmlAndUpdateCursor(buildCustomEmojiHtml(emoji), inInputId);
-  });
+  // const insertCustomEmojiAndUpdateCursor = useLastCallback((emoji: ApiSticker, inInputId: string = editableInputId) => {
+  //   textEditorRef.current?.insertEmoji(emoji);
+  //   // insertHtmlAndUpdateCursor(buildCustomEmojiHtml(emoji), inInputId);
+  // });
 
   const insertNextText = useLastCallback(() => {
     if (!nextText) return;
+    logger.log("insertNextText");
     insertFormattedTextAndUpdateCursor(nextText, editableInputId);
     setNextText(undefined);
   });
@@ -572,12 +604,12 @@ const Composer: FC<OwnProps & StateProps> = ({
     shouldForceAsFile,
     handleAppendFiles,
     handleFileSelect,
-    onCaptionUpdate,
+    // onCaptionUpdate,
     handleClearAttachments,
     handleSetAttachments,
   } = useAttachmentModal({
     attachments,
-    setHtml,
+    // setHtml,
     setAttachments,
     fileSizeLimit,
     chatId,
@@ -623,10 +655,10 @@ const Composer: FC<OwnProps & StateProps> = ({
   const isEditingRef = useStateRef(Boolean(editingMessage));
   useEffect(() => {
     if (!isForCurrentMessageList || isInStoryViewer) return;
-    if (getHtml() && !isEditingRef.current) {
+    if (messageInputRef.current?.isTouched() && !isEditingRef.current) {
       sendMessageAction({ type: 'typing' });
     }
-  }, [getHtml, isEditingRef, isForCurrentMessageList, isInStoryViewer, sendMessageAction]);
+  }, [isMessageInputChanged, isEditingRef, isForCurrentMessageList, isInStoryViewer, sendMessageAction]);
 
   const isAdmin = chat && isChatAdmin(chat);
 
@@ -639,9 +671,9 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useEmojiTooltip(
     Boolean(isReady && isOnActiveTab && (isInStoryViewer || isForCurrentMessageList)
       && shouldSuggestStickers && !hasAttachments),
-    getHtml,
-    setHtml,
-    undefined,
+    // getHtml,
+    // setHtml,
+    messageInputRef,
     recentEmojis,
     baseEmojiKeywords,
     emojiKeywords,
@@ -654,10 +686,11 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useCustomEmojiTooltip(
     Boolean(isReady && isOnActiveTab && (isInStoryViewer || isForCurrentMessageList)
       && shouldSuggestCustomEmoji && !hasAttachments),
-    getHtml,
-    setHtml,
+    // getHtml,
+    // setHtml,
+    messageInputRef,
     getSelectionRange,
-    inputRef,
+    // inputRef,
     customEmojiForEmoji,
   );
 
@@ -671,7 +704,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       && shouldSuggestStickers
       && canSendStickers
       && !hasAttachments),
-    getHtml,
+    // getHtml,
+    messageInputRef,
     stickersForEmoji,
   );
 
@@ -682,10 +716,11 @@ const Composer: FC<OwnProps & StateProps> = ({
     mentionFilteredUsers,
   } = useMentionTooltip(
     Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
-    getHtml,
-    setHtml,
+    // getHtml,
+    // setHtml,
+    messageInputRef,
     getSelectionRange,
-    inputRef,
+    // inputRef,
     groupChatMembers,
     topInlineBotIds,
     currentUserId,
@@ -704,7 +739,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useInlineBotTooltip(
     Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
     chatId,
-    getHtml,
+    // getHtml,
+    messageInputRef,
     inlineBots,
   );
 
@@ -720,7 +756,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       && isReady
       && isForCurrentMessageList
       && ((botCommands && botCommands?.length) || chatBotCommands?.length || (hasQuickReplies && canSendQuickReplies))),
-    getHtml,
+    // getHtml,
+    messageInputRef,
     botCommands,
     chatBotCommands,
     canSendQuickReplies ? quickReplies : undefined,
@@ -730,15 +767,17 @@ const Composer: FC<OwnProps & StateProps> = ({
     draft,
     chatId,
     threadId,
-    getHtml,
-    setHtml,
+    // getHtml,
+    // setHtml: setHtml,
+    messageInputRef: messageInputRef,
     editedMessage: editingMessage,
     isDisabled: isInStoryViewer || Boolean(requestedDraft),
   });
 
   const resetComposer = useLastCallback((shouldPreserveInput = false) => {
     if (!shouldPreserveInput) {
-      setHtml('');
+      // setHtml('');
+      messageInputRef.current?.resetEditor();
     }
 
     setAttachments(MEMO_EMPTY_ARRAY);
@@ -758,8 +797,9 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const [handleEditComplete, handleEditCancel, shouldForceShowEditing] = useEditing(
-    getHtml,
-    setHtml,
+    // getHtml,
+    // setHtml,
+    messageInputRef,
     editingMessage,
     resetComposer,
     chatId,
@@ -806,7 +846,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const mainButtonState = useDerivedState(() => {
-    if (!isInputHasFocus && onForward && !(getHtml() && !hasAttachments)) {
+    if (!isInputHasFocus && onForward && !(messageInputRef.current?.isTouched() && !hasAttachments)) {
       return MainButtonState.Forward;
     }
 
@@ -814,7 +854,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       return MainButtonState.Edit;
     }
 
-    if (IS_VOICE_RECORDING_SUPPORTED && !activeVoiceRecording && !isForwarding && !(getHtml() && !hasAttachments)) {
+    if (IS_VOICE_RECORDING_SUPPORTED && !activeVoiceRecording && !isForwarding && !(messageInputRef.current?.isTouched() && !hasAttachments)) {
       return MainButtonState.Record;
     }
 
@@ -824,7 +864,7 @@ const Composer: FC<OwnProps & StateProps> = ({
 
     return MainButtonState.Send;
   }, [
-    activeVoiceRecording, editingMessage, getHtml, hasAttachments, isForwarding, isInputHasFocus, onForward,
+    activeVoiceRecording, editingMessage, isMessageInputChanged, hasAttachments, isForwarding, isInputHasFocus, onForward,
     shouldForceShowEditing, isInScheduledList,
   ]);
   const canShowCustomSendMenu = !isInScheduledList;
@@ -942,8 +982,9 @@ const Composer: FC<OwnProps & StateProps> = ({
     if (!currentMessageList && !storyId) {
       return;
     }
-
-    const { text, entities } = parseHtmlAsFormattedText(getHtml());
+    if (!messageInputRef.current) return;
+    const { text, entities } = messageInputRef.current.getFormattedText();
+    // const { text, entities } = parseHtmlAsFormattedText(getHtml());
     if (!text && !attachmentsToSend.length) {
       return;
     }
@@ -1033,7 +1074,9 @@ const Composer: FC<OwnProps & StateProps> = ({
       }
     }
 
-    const { text, entities } = parseHtmlAsFormattedText(getHtml());
+    if (!messageInputRef.current) return;
+    const { text, entities } = messageInputRef.current.getFormattedText();
+    // const { text, entities } = parseHtmlAsFormattedText(getHtml());
 
     if (currentAttachments.length) {
       sendAttachments({
@@ -1041,6 +1084,7 @@ const Composer: FC<OwnProps & StateProps> = ({
         scheduledAt,
         isSilent,
       });
+      handleMessageSent();
       return;
     }
 
@@ -1093,6 +1137,7 @@ const Composer: FC<OwnProps & StateProps> = ({
 
     // Wait until message animation starts
     requestMeasure(() => {
+      handleMessageSent();
       resetComposer();
     });
   });
@@ -1168,7 +1213,7 @@ const Composer: FC<OwnProps & StateProps> = ({
         focusEditableElement(messageInput, true);
       });
     }
-  }, [editableInputId, requestedDraft, resetOpenChatWithDraft, setHtml]);
+  }, [editableInputId, requestedDraft, resetOpenChatWithDraft]);
 
   useEffect(() => {
     if (requestedDraftFiles?.length) {
@@ -1177,19 +1222,19 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
   }, [handleFileSelect, requestedDraftFiles, resetOpenChatWithDraft]);
 
-  const handleCustomEmojiSelect = useLastCallback((emoji: ApiSticker, inInputId?: string) => {
-    const emojiSetId = 'id' in emoji.stickerSetInfo && emoji.stickerSetInfo.id;
-    if (!emoji.isFree && !isCurrentUserPremium && !isChatWithSelf && emojiSetId !== chatEmojiSetId) {
-      showCustomEmojiPremiumNotification();
-      return;
-    }
+  // const handleCustomEmojiSelect = useLastCallback((emoji: ApiSticker, inInputId?: string) => {
+  //   const emojiSetId = 'id' in emoji.stickerSetInfo && emoji.stickerSetInfo.id;
+  //   if (!emoji.isFree && !isCurrentUserPremium && !isChatWithSelf && emojiSetId !== chatEmojiSetId) {
+  //     showCustomEmojiPremiumNotification();
+  //     return;
+  //   }
 
-    insertCustomEmojiAndUpdateCursor(emoji, inInputId);
-  });
+  //   insertCustomEmojiAndUpdateCursor(emoji, inInputId);
+  // });
 
-  const handleCustomEmojiSelectAttachmentModal = useLastCallback((emoji: ApiSticker) => {
-    handleCustomEmojiSelect(emoji, EDITABLE_INPUT_MODAL_ID);
-  });
+  // const handleCustomEmojiSelectAttachmentModal = useLastCallback((emoji: ApiSticker) => {
+  //   handleCustomEmojiSelect(emoji, EDITABLE_INPUT_MODAL_ID);
+  // });
 
   const handleGifSelect = useLastCallback((gif: ApiVideo, isSilent?: boolean, isScheduleRequested?: boolean) => {
     if (!currentMessageList && !storyId) {
@@ -1345,12 +1390,13 @@ const Composer: FC<OwnProps & StateProps> = ({
   useEffect(() => {
     if (!isComposerBlocked) return;
 
-    setHtml('');
-  }, [isComposerBlocked, setHtml, attachments]);
+    messageInputRef.current?.resetEditor();
+    // setHtml('');
+  }, [isComposerBlocked, messageInputRef, attachments]);
 
-  const insertTextAndUpdateCursorAttachmentModal = useLastCallback((text: string) => {
-    insertTextAndUpdateCursor(text, EDITABLE_INPUT_MODAL_ID);
-  });
+  // const insertTextAndUpdateCursorAttachmentModal = useLastCallback((text: string) => {
+  //   insertTextAndUpdateCursor(text, EDITABLE_INPUT_MODAL_ID);
+  // });
 
   const removeSymbol = useLastCallback((inInputId = editableInputId) => {
     const selection = window.getSelection()!;
@@ -1363,7 +1409,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       }
     }
 
-    setHtml(deleteLastCharacterOutsideSelection(getHtml()));
+    messageInputRef.current?.deleteLastCharacterOutsideSelection();
+    // setHtml(deleteLastCharacterOutsideSelection(getHtml()));
   });
 
   const removeSymbolAttachmentModal = useLastCallback(() => {
@@ -1396,8 +1443,11 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const withBotMenuButton = isChatWithBot && botMenuButton?.type === 'webApp' && !editingMessage;
   const isBotMenuButtonOpen = useDerivedState(() => {
-    return withBotMenuButton && !getHtml() && !activeVoiceRecording;
-  }, [withBotMenuButton, getHtml, activeVoiceRecording]);
+    const isEditorEmpty = messageInputRef.current
+      ? messageInputRef.current.isHtmlEmpty()
+      : true;
+    return withBotMenuButton && !isEditorEmpty && !activeVoiceRecording;
+  }, [withBotMenuButton, messageInputRef, activeVoiceRecording]);
 
   const [timedPlaceholderLangKey, timedPlaceholderDate] = useMemo(() => {
     if (slowMode?.nextSendDate) {
@@ -1414,7 +1464,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   const isComposerHasFocus = isBotKeyboardOpen || isSymbolMenuOpen || isEmojiTooltipOpen || isSendAsMenuOpen
     || isMentionTooltipOpen || isInlineBotTooltipOpen || isBotCommandMenuOpen || isAttachMenuOpen
     || isStickerTooltipOpen || isChatCommandTooltipOpen || isCustomEmojiTooltipOpen || isBotMenuButtonOpen
-  || isCustomSendMenuOpen || Boolean(activeVoiceRecording) || attachments.length > 0 || isInputHasFocus;
+    || isCustomSendMenuOpen || Boolean(activeVoiceRecording) || attachments.length > 0 || isInputHasFocus;
   const isReactionSelectorOpen = isComposerHasFocus && !isReactionPickerOpen && isInStoryViewer && !isAttachMenuOpen
     && !isSymbolMenuOpen;
   const placeholderForForumAsMessages = chat?.isForum && chat?.isForumAsMessages && threadId === MAIN_THREAD_ID
@@ -1591,7 +1641,7 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const handleRemoveEffect = useLastCallback(() => { saveEffectInDraft({ chatId, threadId, effectId: undefined }); });
 
-  const handleStopEffect = useLastCallback(() => { hideEffectInComposer({ }); });
+  const handleStopEffect = useLastCallback(() => { hideEffectInComposer({}); });
 
   const onSend = useMemo(() => {
     switch (mainButtonState) {
@@ -1641,7 +1691,8 @@ const Composer: FC<OwnProps & StateProps> = ({
         threadId={threadId}
         canShowCustomSendMenu={canShowCustomSendMenu}
         attachments={attachments}
-        getHtml={getHtml}
+        // getHtml={getHtml}
+        messageInputRef={messageInputRef}
         isReady={isReady}
         shouldSuggestCompression={shouldSuggestCompression}
         shouldForceCompression={shouldForceCompression}
@@ -1650,16 +1701,16 @@ const Composer: FC<OwnProps & StateProps> = ({
         isForMessage={isInMessageList}
         shouldSchedule={isInScheduledList}
         forceDarkTheme={isInStoryViewer}
-        onCaptionUpdate={onCaptionUpdate}
+        // onCaptionUpdate={onCaptionUpdate}
         onSendSilent={handleSendSilentAttachments}
         onSend={handleSendAttachmentsFromModal}
         onSendScheduled={handleSendScheduledAttachments}
         onFileAppend={handleAppendFiles}
         onClear={handleClearAttachments}
         onAttachmentsUpdate={handleSetAttachments}
-        onCustomEmojiSelect={handleCustomEmojiSelectAttachmentModal}
+        onCustomEmojiSelect={handleEmojiSelect}
         onRemoveSymbol={removeSymbolAttachmentModal}
-        onEmojiSelect={insertTextAndUpdateCursorAttachmentModal}
+        onEmojiSelect={handleEmojiSelect}
         editingMessage={editingMessage}
         onSendWhenOnline={handleSendWhenOnline}
         canScheduleUntilOnline={canScheduleUntilOnline && !isViewOnceEnabled}
@@ -1691,7 +1742,8 @@ const Composer: FC<OwnProps & StateProps> = ({
         withUsername={Boolean(chatBotCommands)}
         botCommands={botTooltipCommands}
         quickReplies={quickReplyCommands}
-        getHtml={getHtml}
+        // getHtml={getHtml}
+        textEditorRef={messageInputRef}
         self={currentUser!}
         quickReplyMessages={quickReplyMessages}
         onClick={handleBotCommandSelect}
@@ -1752,7 +1804,8 @@ const Composer: FC<OwnProps & StateProps> = ({
             <WebPagePreview
               chatId={chatId}
               threadId={threadId}
-              getHtml={getHtml}
+              // getHtml={getHtml}
+              textEditorRef={messageInputRef}
               isDisabled={!canAttachEmbedLinks || hasAttachments}
               isEditing={Boolean(editingMessage)}
             />
@@ -1814,9 +1867,9 @@ const Composer: FC<OwnProps & StateProps> = ({
               isMessageComposer={isInMessageList}
               onGifSelect={handleGifSelect}
               onStickerSelect={handleStickerSelect}
-              onCustomEmojiSelect={handleCustomEmojiSelect}
+              onCustomEmojiSelect={handleEmojiSelect}
               onRemoveSymbol={removeSymbol}
-              onEmojiSelect={insertTextAndUpdateCursor}
+              onEmojiSelect={handleEmojiSelect}
               closeBotCommandMenu={closeBotCommandMenu}
               closeSendAsMenu={closeSendAsMenu}
               isSymbolMenuForced={isSymbolMenuForced}
@@ -1826,9 +1879,10 @@ const Composer: FC<OwnProps & StateProps> = ({
               forceDarkTheme={isInStoryViewer}
             />
           )}
-          <MessageInput
-            ref={inputRef}
+          <NewMessageInput
+            // ref={inputRef}
             id={inputId}
+            messageInputRef={messageInputRef}
             editableInputId={editableInputId}
             customEmojiPrefix={type}
             isStoryInput={isInStoryViewer}
@@ -1837,7 +1891,7 @@ const Composer: FC<OwnProps & StateProps> = ({
             threadId={threadId}
             isReady={isReady}
             isActive={!hasAttachments}
-            getHtml={getHtml}
+            // getHtml={getHtml}
             placeholder={
               activeVoiceRecording && windowWidth <= SCREEN_WIDTH_TO_HIDE_PLACEHOLDER
                 ? ''
@@ -1852,13 +1906,48 @@ const Composer: FC<OwnProps & StateProps> = ({
             noFocusInterception={hasAttachments}
             shouldSuppressFocus={isMobile && isSymbolMenuOpen}
             shouldSuppressTextFormatter={isEmojiTooltipOpen || isMentionTooltipOpen || isInlineBotTooltipOpen}
-            onUpdate={setHtml}
+            // onUpdate={setHtml}
             onSend={onSend}
             onSuppressedFocus={closeSymbolMenu}
             onFocus={markInputHasFocus}
             onBlur={unmarkInputHasFocus}
             isNeedPremium={isNeedPremium}
+            canSendCustomEmoji={canSendCustomEmoji}
           />
+          {/* <MessageInput
+            // ref={inputRef}
+            id={inputId}
+            textEditorRef={messageInputRef}
+            editableInputId={editableInputId}
+            customEmojiPrefix={type}
+            isStoryInput={isInStoryViewer}
+            chatId={chatId}
+            canSendPlainText={!isComposerBlocked}
+            threadId={threadId}
+            isReady={isReady}
+            isActive={!hasAttachments}
+            // getHtml={getHtml}
+            placeholder={
+              activeVoiceRecording && windowWidth <= SCREEN_WIDTH_TO_HIDE_PLACEHOLDER
+                ? ''
+                : (!isComposerBlocked
+                  ? (botKeyboardPlaceholder || inputPlaceholder || lang(placeholderForForumAsMessages || 'Message'))
+                  : isInStoryViewer ? lang('StoryRepliesLocked') : lang('Chat.PlaceholderTextNotAllowed'))
+            }
+            timedPlaceholderDate={timedPlaceholderDate}
+            timedPlaceholderLangKey={timedPlaceholderLangKey}
+            forcedPlaceholder={inlineBotHelp}
+            canAutoFocus={isReady && isForCurrentMessageList && !hasAttachments && isInMessageList}
+            noFocusInterception={hasAttachments}
+            shouldSuppressFocus={isMobile && isSymbolMenuOpen}
+            shouldSuppressTextFormatter={isEmojiTooltipOpen || isMentionTooltipOpen || isInlineBotTooltipOpen}
+            // onUpdate={setHtml}
+            onSend={onSend}
+            onSuppressedFocus={closeSymbolMenu}
+            onFocus={markInputHasFocus}
+            onBlur={unmarkInputHasFocus}
+            isNeedPremium={isNeedPremium}
+          /> */}
           {isInMessageList && (
             <>
               {isInlineBotLoading && Boolean(inlineBotId) && (
@@ -2140,7 +2229,7 @@ export default memo(withGlobal<OwnProps>(
     const noWebPage = selectNoWebPage(global, chatId, threadId);
 
     const areEffectsSupported = isChatWithUser && !isChatWithBot
-    && !isInScheduledList && !isChatWithSelf && type !== 'story' && chatId !== SERVICE_NOTIFICATIONS_USER_ID;
+      && !isInScheduledList && !isChatWithSelf && type !== 'story' && chatId !== SERVICE_NOTIFICATIONS_USER_ID;
     const canPlayEffect = selectPerformanceSettingsValue(global, 'stickerEffects');
     const shouldPlayEffect = tabState.shouldPlayEffectInComposer;
     const effectId = areEffectsSupported && draft?.effectId;

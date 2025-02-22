@@ -1,5 +1,5 @@
-import type { FC } from '../../../lib/teact/teact';
-import React, { memo, useRef, useState } from '../../../lib/teact/teact';
+import type { FC, TeactNode } from '../../../lib/teact/teact';
+import React, { memo, useEffect, useRef, useState } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
 import type { ApiSticker, ApiVideo } from '../../../api/types';
@@ -50,6 +50,8 @@ type OwnProps = {
   canSendPlainText?: boolean;
   className?: string;
   inputCssSelector?: string;
+  isFolderIconPicker?: boolean;
+  buttonIcon?: TeactNode;
 };
 
 const SymbolMenuButton: FC<OwnProps> = ({
@@ -77,6 +79,8 @@ const SymbolMenuButton: FC<OwnProps> = ({
   onEmojiSelect,
   closeBotCommandMenu,
   closeSendAsMenu,
+  isFolderIconPicker,
+  buttonIcon
 }) => {
   const {
     setStickerSearchQuery,
@@ -106,6 +110,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
     const triggerEl = triggerRef.current;
     if (!triggerEl) return;
     const { x, y } = triggerEl.getBoundingClientRect();
+    getMenuElement()?.style.setProperty('--offset-y', '0');
     setContextMenuAnchor({ x, y });
   });
 
@@ -151,7 +156,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
           onClick={isSymbolMenuOpen ? closeSymbolMenu : handleSymbolMenuOpen}
           ariaLabel="Choose emoji, sticker or GIF"
         >
-          <Icon name="smile" />
+          {buttonIcon ?? <Icon name="smile" />}
           <Icon name="keyboard" />
           {isSymbolMenuOpen && !isSymbolMenuLoaded && <Spinner color="gray" />}
         </Button>
@@ -164,7 +169,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
           ariaLabel="Choose emoji, sticker or GIF"
         >
           <div ref={triggerRef} className="symbol-menu-trigger" />
-          <Icon name="smile" />
+          {buttonIcon ?? <Icon name="smile" />}
         </ResponsiveHoverButton>
       )}
 
@@ -189,6 +194,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
         isAttachmentModal={isAttachmentModal}
         canSendPlainText={canSendPlainText}
         className={buildClassName(className, forceDarkTheme && 'component-theme-dark')}
+        isFolderIconPicker={isFolderIconPicker}
         anchor={isAttachmentModal ? contextMenuAnchor : undefined}
         getTriggerElement={isAttachmentModal ? getTriggerElement : undefined}
         getRootElement={isAttachmentModal ? getRootElement : undefined}

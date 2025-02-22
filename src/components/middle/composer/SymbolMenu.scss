@@ -112,6 +112,13 @@
     }
   }
 
+  &.folder-icon-picker {
+    > .backdrop {
+      top: -4rem;
+      left: -1rem;
+    }
+  }
+
   // TODO Remove this monster with context menu refactor
   .Button.bot-menu:not(.open) ~ &,
   .Button.bot-commands ~ &,
@@ -213,6 +220,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     text-align: center;
+    width: 100%;
   }
 
   &-amount {

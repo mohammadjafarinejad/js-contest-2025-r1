@@ -36,6 +36,8 @@ const PRETTY_BY_ALIAS: Record<string, string | undefined> = {
   tl: 'TL',
 };
 
+export const ALL_SUPPORTED_LANGUAGES = [...new Set(Object.keys(PRETTY_BY_ALIAS))];
+
 export function getPrettyCodeLanguageName(codeLanguage: string) {
   const prettyLangName = PRETTY_BY_ALIAS[codeLanguage.toLowerCase()];
   return prettyLangName ?? codeLanguage;

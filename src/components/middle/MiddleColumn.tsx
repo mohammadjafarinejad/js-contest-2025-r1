@@ -100,6 +100,7 @@ import MiddleSearch from './search/MiddleSearch.async';
 
 import './MiddleColumn.scss';
 import styles from './MiddleColumn.module.scss';
+import { AnimatedChatBackground } from '../../contest/animated-chat/AnimatedChatBackground';
 
 interface OwnProps {
   leftColumnRef: React.RefObject<HTMLDivElement>;
@@ -504,6 +505,12 @@ function MiddleColumn({
       <div
         className={bgClassName}
         style={customBackgroundValue ? `--custom-background: ${customBackgroundValue}` : undefined}
+      />
+      <AnimatedChatBackground
+        theme={theme}
+        customBackground={customBackgroundValue}
+        backgroundColor={backgroundColor}
+        patternColor={patternColor}
       />
       <div id="middle-column-portals" />
       {Boolean(renderingChatId && renderingThreadId) && (

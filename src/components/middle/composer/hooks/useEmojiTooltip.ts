@@ -1,4 +1,4 @@
-import { useEffect, useState } from '../../../../lib/teact/teact';
+import { RefObject, useEffect, useState } from '../../../../lib/teact/teact';
 import { getGlobal } from '../../../../global';
 
 import type { ApiSticker } from '../../../../api/types';
@@ -23,6 +23,7 @@ import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
 import useDerivedSignal from '../../../../hooks/useDerivedSignal';
 import useFlag from '../../../../hooks/useFlag';
 import useLastCallback from '../../../../hooks/useLastCallback';
+import { MessageInputRefType } from '../../../../contest/text-editor';
 
 interface Library {
   keywords: string[];
@@ -58,9 +59,10 @@ try {
 
 export default function useEmojiTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
-  setHtml: (html: string) => void,
-  inputId = EDITABLE_INPUT_ID,
+  // getHtml: Signal<string>,
+  // setHtml: (html: string) => void,
+  // inputId = EDITABLE_INPUT_ID,
+  textEditorRef: MessageInputRefType,
   recentEmojiIds: string[],
   baseEmojiKeywords?: Record<string, string[]>,
   emojiKeywords?: Record<string, string[]>,
@@ -87,12 +89,13 @@ export default function useEmojiTooltip(
   }, [isEnabled]);
 
   const detectEmojiCodeThrottled = useThrottledResolver(() => {
-    const html = getHtml();
+    if (!textEditorRef.current) return;
+    const html = textEditorRef.current.getHtml();
     return isEnabled && html.includes(':') ? prepareForRegExp(html).match(RE_EMOJI_SEARCH)?.[0].trim() : undefined;
-  }, [getHtml, isEnabled], THROTTLE);
+  }, [textEditorRef, isEnabled], THROTTLE);
 
   const getEmojiCode = useDerivedSignal(
-    detectEmojiCodeThrottled, [detectEmojiCodeThrottled, getHtml], true,
+    detectEmojiCodeThrottled, [detectEmojiCodeThrottled, textEditorRef], true,
   );
 
   const updateFiltered = useLastCallback((emojis: Emoji[]) => {
@@ -112,22 +115,23 @@ export default function useEmojiTooltip(
   });
 
   const insertEmoji = useLastCallback((emoji: string | ApiSticker, isForce = false) => {
-    const html = getHtml();
+    const html = textEditorRef.current?.getHtml();
+    // const html = getHtml();
     if (!html) return;
 
     const atIndex = html.lastIndexOf(':', isForce ? html.lastIndexOf(':') - 1 : undefined);
-
     if (atIndex !== -1) {
-      const emojiHtml = typeof emoji === 'string' ? renderText(emoji, ['emoji_html']) : buildCustomEmojiHtml(emoji);
-      setHtml(`${html.substring(0, atIndex)}${emojiHtml}`);
+      textEditorRef.current?.insertEmoji(emoji);
+      // const emojiHtml = typeof emoji === 'string' ? renderText(emoji, ['emoji_html']) : buildCustomEmojiHtml(emoji);
+      // setHtml(`${html.substring(0, atIndex)}${emojiHtml}`);
 
-      const messageInput = inputId === EDITABLE_INPUT_ID
-        ? document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR)!
-        : document.getElementById(inputId) as HTMLDivElement;
+      // const messageInput = inputId === EDITABLE_INPUT_ID
+      //   ? document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR)!
+      //   : document.getElementById(inputId) as HTMLDivElement;
 
-      requestNextMutation(() => {
-        focusEditableElement(messageInput, true, true);
-      });
+      // requestNextMutation(() => {
+      //   focusEditableElement(messageInput, true, true);
+      // });
     }
 
     updateFiltered(MEMO_EMPTY_ARRAY);
@@ -166,7 +170,7 @@ export default function useEmojiTooltip(
     baseEmojiKeywords, byId, getEmojiCode, emojiKeywords, insertEmoji, recentEmojiIds, updateFiltered,
   ]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, textEditorRef]);
 
   return {
     isEmojiTooltipOpen: Boolean(filteredEmojis.length || filteredCustomEmojis.length) && !isManuallyClosed,

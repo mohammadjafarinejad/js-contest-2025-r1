@@ -604,7 +604,8 @@
 
 #message-input-text,
 #story-input-text,
-#caption-input-text {
+#caption-input-text,
+#folder-input-text {
   position: relative;
   flex-grow: 1;
 
@@ -769,7 +770,8 @@
 }
 
 #story-input-text,
-#caption-input-text {
+#caption-input-text,
+#folder-input-text {
   --margin-for-scrollbar: 2rem;
   .input-scroller {
     min-height: var(--base-height, 3.5rem);

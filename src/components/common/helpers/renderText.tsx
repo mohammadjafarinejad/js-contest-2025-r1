@@ -137,6 +137,7 @@ function replaceEmojis(textParts: TextPart[], size: 'big' | 'small', type: 'jsx'
               data-path={src}
               draggable={false}
               onLoad={!isLoaded ? handleEmojiLoad : undefined}
+              data-is-emoji={true}
             />,
           );
         }
@@ -147,6 +148,7 @@ function replaceEmojis(textParts: TextPart[], size: 'big' | 'small', type: 'jsx'
             class="${className}"\
             src="${src}"\
             alt="${emoji}"\
+            data-is-emoji="true"\
           />`,
           );
         }

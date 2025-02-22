@@ -59,6 +59,8 @@ import MessageInput from './MessageInput';
 import SymbolMenuButton from './SymbolMenuButton';
 
 import styles from './AttachmentModal.module.scss';
+import { MessageInputRefType, useMessageInputEvent } from '../../../contest/text-editor';
+import NewMessageInput from '../../../contest/text-editor/NewMessageInput';
 
 export type OwnProps = {
   chatId: string;
@@ -66,7 +68,8 @@ export type OwnProps = {
   attachments: ApiAttachment[];
   editingMessage?: ApiMessage;
   messageListType?: MessageListType;
-  getHtml: Signal<string>;
+  // getHtml: Signal<string>;
+  messageInputRef: MessageInputRefType;
   canShowCustomSendMenu?: boolean;
   isReady: boolean;
   isForMessage?: boolean;
@@ -76,7 +79,7 @@ export type OwnProps = {
   shouldForceAsFile?: boolean;
   isForCurrentMessageList?: boolean;
   forceDarkTheme?: boolean;
-  onCaptionUpdate: (html: string) => void;
+  // onCaptionUpdate: (html: string) => void;
   onSend: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onFileAppend: (files: File[], isSpoiler?: boolean) => void;
   onAttachmentsUpdate: (attachments: ApiAttachment[]) => void;
@@ -112,7 +115,8 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   chatId,
   threadId,
   attachments,
-  getHtml,
+  // getHtml,
+  messageInputRef,
   editingMessage,
   canShowCustomSendMenu,
   captionLimit,
@@ -134,7 +138,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   isForCurrentMessageList,
   forceDarkTheme,
   onAttachmentsUpdate,
-  onCaptionUpdate,
+  // onCaptionUpdate,
   onSend,
   onFileAppend,
   onClear,
@@ -151,6 +155,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const svgRef = useRef<SVGSVGElement>(null);
   const { addRecentCustomEmoji, addRecentEmoji, updateAttachmentSettings } = getActions();
+  const {isMessageInputChanged} = useMessageInputEvent(messageInputRef);
 
   const lang = useOldLang();
 
@@ -223,9 +228,10 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     closeEmojiTooltip,
   } = useEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen),
-    getHtml,
-    onCaptionUpdate,
-    EDITABLE_INPUT_MODAL_ID,
+    // getHtml,
+    // onCaptionUpdate,
+    messageInputRef,
+    // EDITABLE_INPUT_MODAL_ID,
     recentEmojis,
     baseEmojiKeywords,
     emojiKeywords,
@@ -237,10 +243,11 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     closeCustomEmojiTooltip,
   } = useCustomEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen && shouldSuggestCustomEmoji),
-    getHtml,
-    onCaptionUpdate,
+    // getHtml,
+    // onCaptionUpdate,
+    messageInputRef,
     getSelectionRange,
-    inputRef,
+    // inputRef,
     customEmojiForEmoji,
   );
 
@@ -251,10 +258,11 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     mentionFilteredUsers,
   } = useMentionTooltip(
     Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
-    getHtml,
-    onCaptionUpdate,
+    // getHtml,
+    // onCaptionUpdate,
+    messageInputRef,
     getSelectionRange,
-    inputRef,
+    // inputRef,
     groupChatMembers,
     undefined,
     currentUserId,
@@ -445,11 +453,12 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   }, [isMobile]);
 
   const leftChars = useDerivedState(() => {
+    if (!messageInputRef.current) return;
     if (!renderingIsOpen) return undefined;
 
-    const leftCharsBeforeLimit = captionLimit - getHtmlTextLength(getHtml());
+    const leftCharsBeforeLimit = captionLimit - getHtmlTextLength(messageInputRef.current.getHtml());
     return leftCharsBeforeLimit <= MAX_LEFT_CHARS_TO_SHOW ? leftCharsBeforeLimit : undefined;
-  }, [captionLimit, getHtml, renderingIsOpen]);
+  }, [captionLimit, isMessageInputChanged, renderingIsOpen]);
 
   const isQuickGallery = isSendingCompressed && hasOnlyMedia;
 
@@ -673,8 +682,9 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               idPrefix="attachment"
               forceDarkTheme={forceDarkTheme}
             />
-            <MessageInput
-              ref={inputRef}
+            <NewMessageInput
+              // ref={inputRef}
+              messageInputRef={messageInputRef}
               id={ATTACHMENT_MODAL_INPUT_ID}
               chatId={chatId}
               threadId={threadId}
@@ -682,10 +692,10 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               customEmojiPrefix="attachment"
               isReady={isReady}
               isActive={isOpen}
-              getHtml={getHtml}
+              // getHtml={getHtml}
               editableInputId={EDITABLE_INPUT_MODAL_ID}
               placeholder={lang('AddCaption')}
-              onUpdate={onCaptionUpdate}
+              // onUpdate={onCaptionUpdate}
               onSend={handleSendClick}
               onScroll={handleCaptionScroll}
               canAutoFocus={Boolean(isReady && isForCurrentMessageList && attachments.length)}

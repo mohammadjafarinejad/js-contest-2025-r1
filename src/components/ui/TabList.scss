@@ -18,6 +18,18 @@
   scrollbar-width: none;
   scrollbar-color: rgba(0, 0, 0, 0);
 
+  &.vertical {
+    flex-direction: column;
+    padding: 0;
+    background-color: transparent;
+    overflow: hidden;
+    --folder-icon-fill: var(--left-tab-icon-color);
+
+    .Tab:first-child {
+      padding-top: 0;
+    }
+  }
+
   &::-webkit-scrollbar {
     height: 0;
   }

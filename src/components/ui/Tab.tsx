@@ -23,6 +23,8 @@ import './Tab.scss';
 type OwnProps = {
   className?: string;
   title: TeactNode;
+  icon?: TeactNode;
+  isVertical?: boolean;
   isActive?: boolean;
   isBlocked?: boolean;
   badgeCount?: number;
@@ -42,6 +44,8 @@ const classNames = {
 const Tab: FC<OwnProps> = ({
   className,
   title,
+  icon,
+  isVertical,
   isActive,
   isBlocked,
   badgeCount,
@@ -103,7 +107,7 @@ const Tab: FC<OwnProps> = ({
         };
       });
     });
-  }, [isActive, previousActiveTab]);
+  }, [isVertical, isActive, previousActiveTab]);
 
   const {
     contextMenuAnchor, handleContextMenu, handleBeforeContextMenu, handleContextMenuClose,
@@ -133,15 +137,21 @@ const Tab: FC<OwnProps> = ({
 
   return (
     <div
-      className={buildClassName('Tab', onClick && 'Tab--interactive', className)}
+      className={buildClassName('Tab', onClick && 'Tab--interactive', isVertical && 'vertical', className)}
       onClick={handleClick}
       onMouseDown={handleMouseDown}
       onContextMenu={handleContextMenu}
       ref={tabRef}
     >
+      {<div className='Tab_icon'>
+          {icon}
+          {Boolean(badgeCount) && (
+            <span className={buildClassName('badge', isBadgeActive && classNames.badgeActive)}>{badgeCount}</span>
+          )}
+      </div>}
       <span className="Tab_inner">
         {typeof title === 'string' ? renderText(title) : title}
-        {Boolean(badgeCount) && (
+        {!isVertical && Boolean(badgeCount) && (
           <span className={buildClassName('badge', isBadgeActive && classNames.badgeActive)}>{badgeCount}</span>
         )}
         {isBlocked && <Icon name="lock-badge" className="blocked" />}

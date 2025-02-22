@@ -6,6 +6,7 @@ import type { BotAppPermissions } from '../../types';
 import type { GlobalState } from '../types';
 
 import { isUserBot } from '../helpers';
+import { Contest } from '../../contest/contest';
 
 export function selectUser<T extends GlobalState>(global: T, userId: string): ApiUser | undefined {
   return global.users.byId[userId];
@@ -30,6 +31,8 @@ export function selectIsUserBlocked<T extends GlobalState>(global: T, userId: st
 }
 
 export function selectIsCurrentUserPremium<T extends GlobalState>(global: T) {
+  // ! FOR TEST
+  if (Contest.isTestMode()) return Contest.Test().isTestUserPremium();
   if (!global.currentUserId) return false;
 
   return Boolean(global.users.byId[global.currentUserId].isPremium);

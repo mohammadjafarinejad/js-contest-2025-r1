@@ -12,6 +12,7 @@ import {
   APP_NAME,
   DEBUG,
   IS_BETA,
+  MOBILE_SCREEN_MAX_WIDTH,
 } from '../../../config';
 import {
   selectCanSetPasscode,
@@ -48,6 +49,8 @@ import LeftSideMenuItems from './LeftSideMenuItems';
 import StatusButton from './StatusButton';
 
 import './LeftMainHeader.scss';
+import useWindowSize from '../../../hooks/window/useWindowSize';
+import { useFolderPosition, useRepositionOnFolderChange } from '../../../contest/chat-folders/useFolderPosition';
 
 type OwnProps = {
   shouldHideSearch?: boolean;
@@ -249,10 +252,14 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     );
   }, [globalSearchChatId, selectedSearchDate]);
 
+  useRepositionOnFolderChange({
+    elementId: "main-button-wrapper",
+    originId: "LeftMainHeader"
+  });
+
   return (
     <div className="LeftMainHeader">
-      <div id="LeftMainHeader" className="left-header" ref={headerRef}>
-        {oldLang.isRtl && <div className="DropdownMenuFiller" />}
+      <div id='main-button-wrapper'>
         <DropdownMenu
           trigger={MainButton}
           footer={`${APP_NAME} ${versionString}`}
@@ -275,6 +282,9 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
             onBotMenuClosed={unmarkBotMenuOpen}
           />
         </DropdownMenu>
+      </div>
+      <div id="LeftMainHeader" className={buildClassName("left-header")} ref={headerRef}>
+        {oldLang.isRtl && <div className="DropdownMenuFiller" />}
         <SearchInput
           inputId="telegram-search-input"
           resultsItemSelector=".LeftSearch .ListItem-button"

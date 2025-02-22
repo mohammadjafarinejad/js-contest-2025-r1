@@ -156,7 +156,7 @@ addActionHandler('requestNextSettingsScreen', (global, actions, payload): Action
 });
 
 addActionHandler('openEditChatFolder', (global, actions, payload): ActionReturnType => {
-  const { folderId, isOnlyInvites, tabId = getCurrentTabId() } = payload;
+  const { folderId, isOnlyInvites, tabId = getCurrentTabId(), isModal } = payload;
 
   const chatFolder = selectChatFolder(global, folderId);
   if (!chatFolder) return;
@@ -165,7 +165,7 @@ addActionHandler('openEditChatFolder', (global, actions, payload): ActionReturnT
     screen: isOnlyInvites ? SettingsScreens.FoldersEditFolderInvites : SettingsScreens.FoldersEditFolderFromChatList,
     foldersAction: {
       type: 'editFolder',
-      payload: chatFolder,
+      payload: {isModal, ...chatFolder},
     },
     tabId,
   });

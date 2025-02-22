@@ -1,3 +1,39 @@
+.LeftColumnWrapper {
+  --left-tab-bg-color: #212121;
+  --left-tab-icon-color: #717579;
+  --left-tab-icon-size: 35px;
+  --left-tab-width: 70px;
+
+  display: flex;
+  flex-direction: row;
+
+  html.theme-dark & {
+    --left-tab-bg-color: #0F0F0F;
+    --left-tab-icon-color: #717579;
+  }
+
+  #folders-column {
+    height: 100%;
+    width: var(--left-tab-width);
+    max-width: var(--left-tab-width);
+    background-color: var(--left-tab-bg-color);
+    display: flex;
+    flex-direction: column;
+
+    &.hide {
+      display: none;
+    }
+
+    #main-button-wrapper {
+      order: -1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 56px;
+    }
+  }
+}
+
 #NewChat {
   height: 100%;
 }
@@ -39,7 +75,7 @@
     width: 2.5rem;
     height: 2.5rem;
 
-    + .DropdownMenu {
+    +.DropdownMenu {
       margin-left: 0.25rem;
     }
   }
